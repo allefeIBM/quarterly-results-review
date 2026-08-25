@@ -15,6 +15,13 @@ from pathlib import Path
 from datetime import datetime, date
 from urllib import parse, request as urlrequest
 
+# Load .env file if present (python-dotenv is optional)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 import openpyxl
 import pytesseract
 from PIL import Image

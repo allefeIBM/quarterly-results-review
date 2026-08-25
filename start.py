@@ -34,7 +34,8 @@ except ImportError as e:
     print(f"Missing dependency: {e}")
     print("Installing required packages…")
     subprocess.check_call([sys.executable, "-m", "pip", "install",
-                           "flask", "flask-cors", "openpyxl", "python-pptx", "lxml", "pillow", "pytesseract"])
+                           "flask", "flask-cors", "openpyxl", "python-pptx", "lxml", "pillow", "pytesseract",
+                           "python-dotenv"])
     print()
 
 # Check Tesseract OCR
