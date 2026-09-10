@@ -289,7 +289,7 @@
     <div class="sub">Standalone · IBM Field Marketing · 2026</div>
   </div>
   <div class="header-actions">
-    <button class="header-btn" id="box-status-btn" onclick="boxConnect()" style="display:none">📁 Conectar ao Box</button>
+    <a class="header-btn" id="box-status-btn" href="#" onclick="boxConnect(); return false;" style="display:none; text-decoration:none;">📁 Conectar ao Box</a>
     <button class="header-btn" id="box-disconnect-btn" onclick="boxDisconnect()" style="display:none; border-color:#da1e28; color:#da1e28;">✕ Desconectar Box</button>
     <button class="header-btn" onclick="openApiSettings()">⚙ Airtable Settings</button>
   </div>
@@ -307,9 +307,10 @@
         As planilhas de KPI são carregadas automaticamente a partir da pasta do Box.<br>
         Clique no botão abaixo para autenticar — você só precisa fazer isso <strong>uma vez a cada 60 dias</strong>.
       </div>
-      <button class="generate-btn" onclick="boxConnect()" style="background:#0353e9;">
+      <a id="box-connect-link" href="#" onclick="boxConnect(); return false;"
+         style="display:inline-flex;align-items:center;gap:8px;background:#0353e9;color:#fff;border:none;padding:14px 32px;font-size:15px;font-family:inherit;font-weight:600;cursor:pointer;text-decoration:none;">
         📁 Conectar ao Box
-      </button>
+      </a>
     </div>
 
     <!-- Connected / loading state -->
@@ -501,7 +502,8 @@ function getBoxToken() {
 }
 
 function boxConnect() {
-  window.location.href = BOX_AUTH_URL;
+  console.log("Box connect → redirecting to:", BOX_AUTH_URL);
+  window.location.assign(BOX_AUTH_URL);
 }
 
 function boxDisconnect() {
