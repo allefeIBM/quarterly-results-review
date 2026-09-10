@@ -289,29 +289,37 @@
     <div class="sub">Standalone · IBM Field Marketing · 2026</div>
   </div>
   <div class="header-actions">
+    <button class="header-btn" id="box-status-btn" onclick="boxConnect()" style="display:none">📁 Conectar ao Box</button>
+    <button class="header-btn" id="box-disconnect-btn" onclick="boxDisconnect()" style="display:none; border-color:#da1e28; color:#da1e28;">✕ Desconectar Box</button>
     <button class="header-btn" onclick="openApiSettings()">⚙ Airtable Settings</button>
   </div>
 </header>
 
 <main>
 
-  <!-- ── Step 1: Load XLSX files ────────────────────────────────────────────── -->
-  <div class="card">
-    <h2><span class="step-badge">1</span> Carregar Planilhas de KPI</h2>
+  <!-- ── Step 1: Conectar ao Box ───────────────────────────────────────────── -->
+  <div class="card" id="box-card">
+    <h2><span class="step-badge">1</span> Conectar ao Box</h2>
 
-    <div class="info-box">
-      Selecione os arquivos <strong>.xlsx</strong> de planejamento (todos ao mesmo tempo ou um a um).
-      Os dados ficam na memória do browser — nenhum arquivo é enviado para nenhum servidor.
+    <!-- Not connected state -->
+    <div id="box-not-connected">
+      <div class="info-box" style="margin-bottom:20px;">
+        As planilhas de KPI são carregadas automaticamente a partir da pasta do Box.<br>
+        Clique no botão abaixo para autenticar — você só precisa fazer isso <strong>uma vez a cada 60 dias</strong>.
+      </div>
+      <button class="generate-btn" onclick="boxConnect()" style="background:#0353e9;">
+        📁 Conectar ao Box
+      </button>
     </div>
 
-    <div class="drop-zone" id="xlsx-drop-zone">
-      <input type="file" id="xlsx-file-input" accept=".xlsx" multiple />
-      <div class="dz-icon">📊</div>
-      <div class="dz-text">Arraste os arquivos .xlsx aqui</div>
-      <div class="dz-hint">ou clique para selecionar · aceita múltiplos arquivos</div>
+    <!-- Connected / loading state -->
+    <div id="box-connected" style="display:none;">
+      <div class="info-box" style="background:#defbe6; border-color:#24a148; margin-bottom:16px;">
+        ✓ Conectado ao Box — planilhas carregadas automaticamente.
+      </div>
+      <div class="upload-grid" id="file-chips"></div>
+      <button onclick="boxReload()" style="margin-top:14px;background:none;border:1px solid #8d8d8d;padding:6px 16px;font-size:12px;cursor:pointer;color:#525252;font-family:inherit;">↺ Recarregar planilhas do Box</button>
     </div>
-
-    <div class="upload-grid" id="file-chips"></div>
   </div>
 
   <!-- ── Step 2: Choose event ──────────────────────────────────────────────── -->
@@ -433,20 +441,174 @@ let selectedEvent = null;
 let airtableCache = {}; // brief_upper → airtable fields
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// BOOT — check if first time (no API key stored)
+// CONSTANTS
 // ═══════════════════════════════════════════════════════════════════════════════
-// Fixed Airtable base/table — extracted from the canonical URL
+// Fixed Airtable base/table
 const AT_BASE_ID  = "appcSYlaIYXL0UHy9";
 const AT_TABLE_ID = "tblFRyAdPMPYwU8Zr";
 
-document.addEventListener("DOMContentLoaded", () => {
+// Box OAuth — Client ID is public (read-only scopes only)
+const BOX_CLIENT_ID   = "gpenqz9gll6co4notlrsm5v7dt5lzln5o";
+const BOX_REDIRECT_URI = "https://allefeibm.github.io/quarterly-results-review/";
+const BOX_FOLDER_ID   = "367762631653";
+const BOX_AUTH_URL    = `https://account.box.com/api/oauth2/authorize?response_type=token&client_id=${BOX_CLIENT_ID}&redirect_uri=${encodeURIComponent(BOX_REDIRECT_URI)}`;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════════════════════
+document.addEventListener("DOMContentLoaded", async () => {
+  // 1. Airtable modal (first time only)
   const alreadyConfigured = localStorage.getItem("at_configured");
   if (!alreadyConfigured) {
     showModal();
   } else {
     document.getElementById("at-token").value = localStorage.getItem("at_token") || "";
   }
+
+  // 2. Box — check for token in URL hash (OAuth implicit flow redirect)
+  const hash = window.location.hash;
+  if (hash.includes("access_token=")) {
+    const params = new URLSearchParams(hash.replace(/^#/, ""));
+    const token   = params.get("access_token");
+    const expires = params.get("expires_in");
+    if (token) {
+      const expiry = Date.now() + (parseInt(expires) || 3600) * 1000;
+      localStorage.setItem("box_token", token);
+      localStorage.setItem("box_token_expiry", expiry);
+      // Clean URL so the token doesn't stay in the browser history
+      history.replaceState(null, "", window.location.pathname);
+    }
+  }
+
+  // 3. If we have a valid Box token, load spreadsheets immediately
+  const boxToken = getBoxToken();
+  if (boxToken) {
+    updateBoxUI(true);
+    await loadFromBox(boxToken);
+  } else {
+    updateBoxUI(false);
+  }
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// BOX OAUTH — implicit flow (token in URL hash, no server needed)
+// ═══════════════════════════════════════════════════════════════════════════════
+function getBoxToken() {
+  const token  = localStorage.getItem("box_token");
+  const expiry = parseInt(localStorage.getItem("box_token_expiry") || "0");
+  if (!token || Date.now() > expiry) return null;
+  return token;
+}
+
+function boxConnect() {
+  window.location.href = BOX_AUTH_URL;
+}
+
+function boxDisconnect() {
+  localStorage.removeItem("box_token");
+  localStorage.removeItem("box_token_expiry");
+  allEvents = {};
+  searchIndex = [];
+  updateBoxUI(false);
+  document.getElementById("file-chips").innerHTML = "";
+  document.getElementById("selected-event-info").style.display = "none";
+  document.getElementById("kpi-preview").style.display = "none";
+  updateGenerateBtn();
+}
+
+async function boxReload() {
+  const token = getBoxToken();
+  if (!token) { boxConnect(); return; }
+  allEvents = {};
+  await loadFromBox(token);
+}
+
+function updateBoxUI(connected) {
+  document.getElementById("box-not-connected").style.display = connected ? "none" : "block";
+  document.getElementById("box-connected").style.display     = connected ? "block" : "none";
+  document.getElementById("box-status-btn").style.display      = connected ? "none" : "inline-flex";
+  document.getElementById("box-disconnect-btn").style.display  = connected ? "inline-flex" : "none";
+}
+
+// ── Recursively collect all .xlsx files from a Box folder ────────────────────
+async function boxListXlsx(folderId, token) {
+  const files = [];
+  let offset = 0;
+  const limit = 200;
+
+  while (true) {
+    const resp = await fetch(
+      `https://api.box.com/2.0/folders/${folderId}/items?limit=${limit}&offset=${offset}&fields=id,name,type`,
+      { headers: { "Authorization": `Bearer ${token}` } }
+    );
+    if (!resp.ok) throw new Error(`Box API error: ${resp.status}`);
+    const data = await resp.json();
+
+    for (const item of data.entries) {
+      if (item.type === "file" && item.name.toLowerCase().endsWith(".xlsx")) {
+        files.push(item);
+      } else if (item.type === "folder") {
+        // Recurse into subfolders
+        const sub = await boxListXlsx(item.id, token);
+        files.push(...sub);
+      }
+    }
+
+    if (data.entries.length < limit) break;
+    offset += limit;
+  }
+  return files;
+}
+
+async function boxDownloadXlsx(fileId, fileName, token) {
+  const resp = await fetch(
+    `https://api.box.com/2.0/files/${fileId}/content`,
+    { headers: { "Authorization": `Bearer ${token}` } }
+  );
+  if (!resp.ok) throw new Error(`Erro ao baixar ${fileName}: ${resp.status}`);
+  const arrayBuffer = await resp.arrayBuffer();
+  const wb = XLSX.read(arrayBuffer, { type: "array" });
+  for (const sheetName of wb.SheetNames) {
+    if (/option/i.test(sheetName) || sheetName.toLowerCase() === "sheet1") continue;
+    parseSheet(wb.Sheets[sheetName], sheetName, fileName);
+  }
+}
+
+async function loadFromBox(token) {
+  showOverlay("Conectando ao Box e carregando planilhas…");
+  try {
+    const files = await boxListXlsx(BOX_FOLDER_ID, token);
+    if (!files.length) {
+      hideOverlay();
+      setStatus("error", "⚠ Nenhum arquivo .xlsx encontrado na pasta do Box.");
+      return;
+    }
+
+    for (let i = 0; i < files.length; i++) {
+      showOverlay(`Carregando planilha ${i + 1} de ${files.length}: ${files[i].name}…`);
+      try {
+        await boxDownloadXlsx(files[i].id, files[i].name, token);
+      } catch (e) {
+        console.warn("Erro ao carregar", files[i].name, e);
+      }
+    }
+
+    hideOverlay();
+    renderFileChips();
+    rebuildSearchIndex();
+    setStatus("info", `✓ ${Object.keys(allEvents).length} evento(s) carregado(s) de ${files.length} planilha(s) do Box.`);
+    setTimeout(clearStatus, 6000);
+  } catch (e) {
+    hideOverlay();
+    // Token may have expired
+    if (e.message.includes("401") || e.message.includes("403")) {
+      boxDisconnect();
+      setStatus("error", "⚠ Sessão do Box expirada. Clique em "Conectar ao Box" para autenticar novamente.");
+    } else {
+      setStatus("error", "⚠ Erro ao carregar planilhas do Box: " + e.message);
+    }
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // AIRTABLE SETTINGS MODAL
@@ -480,60 +642,8 @@ function skipApiSettings() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// XLSX — client-side loading with SheetJS
+// XLSX — parsing with SheetJS (data comes from Box, not file input)
 // ═══════════════════════════════════════════════════════════════════════════════
-const xlsxDropZone  = document.getElementById("xlsx-drop-zone");
-const xlsxFileInput = document.getElementById("xlsx-file-input");
-
-xlsxFileInput.addEventListener("change", () => {
-  if (xlsxFileInput.files.length) processXlsxFiles([...xlsxFileInput.files]);
-});
-xlsxDropZone.addEventListener("dragover", (e) => {
-  e.preventDefault(); xlsxDropZone.classList.add("dragover");
-});
-xlsxDropZone.addEventListener("dragleave", () => xlsxDropZone.classList.remove("dragover"));
-xlsxDropZone.addEventListener("drop", (e) => {
-  e.preventDefault(); xlsxDropZone.classList.remove("dragover");
-  const files = [...e.dataTransfer.files].filter(f => f.name.endsWith(".xlsx"));
-  if (files.length) processXlsxFiles(files);
-});
-
-async function processXlsxFiles(files) {
-  showOverlay("Processando planilhas…");
-  for (const file of files) {
-    try {
-      await loadXlsx(file);
-    } catch (e) {
-      console.warn("Erro ao ler", file.name, e);
-    }
-  }
-  hideOverlay();
-  renderFileChips();
-  rebuildSearchIndex();
-  setStatus("info", `✓ ${Object.keys(allEvents).length} evento(s) carregado(s) das planilhas.`);
-  setTimeout(clearStatus, 5000);
-}
-
-async function loadXlsx(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const wb = XLSX.read(e.target.result, { type: "array" });
-        for (const sheetName of wb.SheetNames) {
-          if (/option/i.test(sheetName) || sheetName.toLowerCase() === "sheet1") continue;
-          const ws = wb.Sheets[sheetName];
-          parseSheet(ws, sheetName, file.name);
-        }
-        resolve();
-      } catch (err) {
-        reject(err);
-      }
-    };
-    reader.onerror = reject;
-    reader.readAsArrayBuffer(file);
-  });
-}
 
 function parseSheet(ws, sheetName, filename) {
   // Convert to array-of-arrays (header: 1 means row 0 = header)
