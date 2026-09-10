@@ -4,6 +4,12 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Quarterly Results Review — Presentation Generator</title>
+
+  <!-- SheetJS (read XLSX client-side) -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <!-- PptxGenJS (generate PPTX client-side) -->
+  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -24,23 +30,18 @@
       gap: 16px;
     }
     header svg { flex-shrink: 0; }
-    header h1 {
-      font-size: 18px;
-      font-weight: 400;
-      letter-spacing: .01em;
+    header h1 { font-size: 18px; font-weight: 400; letter-spacing: .01em; }
+    header .sub { font-size: 12px; color: #8d8d8d; margin-top: 2px; }
+    .header-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+    .header-btn {
+      background: none; border: 1px solid #525252; color: #c6c6c6;
+      padding: 6px 14px; font-size: 12px; font-family: inherit;
+      cursor: pointer; transition: border-color .15s, color .15s;
     }
-    header .sub {
-      font-size: 12px;
-      color: #8d8d8d;
-      margin-top: 2px;
-    }
+    .header-btn:hover { border-color: #f4f4f4; color: #f4f4f4; }
 
     /* ── Main layout ─────────────────────────────────────────── */
-    main {
-      max-width: 900px;
-      margin: 40px auto;
-      padding: 0 24px;
-    }
+    main { max-width: 900px; margin: 40px auto; padding: 0 24px; }
 
     /* ── Card ────────────────────────────────────────────────── */
     .card {
@@ -50,106 +51,64 @@
       margin-bottom: 24px;
     }
     .card h2 {
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 20px;
-      padding-bottom: 12px;
+      font-size: 16px; font-weight: 600;
+      margin-bottom: 20px; padding-bottom: 12px;
       border-bottom: 2px solid #0f62fe;
       color: #161616;
+      display: flex; align-items: center;
     }
 
     /* ── Step badges ─────────────────────────────────────────── */
     .step-badge {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-      background: #0f62fe;
-      color: #fff;
-      font-size: 12px;
-      font-weight: 600;
-      border-radius: 50%;
-      margin-right: 8px;
-      flex-shrink: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px;
+      background: #0f62fe; color: #fff;
+      font-size: 12px; font-weight: 600;
+      border-radius: 50%; margin-right: 8px; flex-shrink: 0;
     }
-    .card h2 { display: flex; align-items: center; }
 
     /* ── Search field ────────────────────────────────────────── */
     .search-wrap { position: relative; }
     .search-wrap input {
-      width: 100%;
-      padding: 12px 16px;
+      width: 100%; padding: 12px 16px;
       border: 1px solid #8d8d8d;
-      font-size: 14px;
-      font-family: inherit;
-      background: #fff;
-      outline: none;
-      transition: border-color .15s;
+      font-size: 14px; font-family: inherit;
+      background: #fff; outline: none; transition: border-color .15s;
     }
     .search-wrap input:focus { border-color: #0f62fe; box-shadow: 0 0 0 2px #0f62fe33; }
 
     .dropdown {
-      position: absolute;
-      top: calc(100% + 2px);
-      left: 0; right: 0;
-      background: #fff;
-      border: 1px solid #8d8d8d;
-      max-height: 280px;
-      overflow-y: auto;
-      z-index: 100;
-      display: none;
+      position: absolute; top: calc(100% + 2px); left: 0; right: 0;
+      background: #fff; border: 1px solid #8d8d8d;
+      max-height: 280px; overflow-y: auto; z-index: 100; display: none;
     }
     .dropdown.open { display: block; }
     .dropdown-item {
-      padding: 10px 16px;
-      cursor: pointer;
-      font-size: 13px;
+      padding: 10px 16px; cursor: pointer; font-size: 13px;
       border-bottom: 1px solid #f4f4f4;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
     }
     .dropdown-item:hover, .dropdown-item.focused { background: #e8f0fd; }
     .dropdown-item .ev-name { font-size: 13px; color: #161616; flex: 1; }
     .dropdown-item .ev-brief {
-      font-size: 11px;
-      color: #525252;
+      font-size: 11px; color: #525252;
       font-family: "IBM Plex Mono", monospace;
-      white-space: nowrap;
-      background: #f4f4f4;
-      padding: 2px 6px;
-      border-radius: 2px;
+      white-space: nowrap; background: #f4f4f4;
+      padding: 2px 6px; border-radius: 2px;
     }
     .dropdown-item mark { background: #fff3cd; padding: 0; }
-    .dropdown-empty {
-      padding: 14px 16px;
-      font-size: 13px;
-      color: #6f6f6f;
-      text-align: center;
-    }
+    .dropdown-empty { padding: 14px 16px; font-size: 13px; color: #6f6f6f; text-align: center; }
 
     /* ── Selected event pill ─────────────────────────────────── */
-    #selected-event-info {
-      margin-top: 16px;
-      display: none;
-    }
+    #selected-event-info { margin-top: 16px; display: none; }
     .event-pill {
-      background: #e8f0fd;
-      border: 1px solid #0f62fe;
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
+      background: #e8f0fd; border: 1px solid #0f62fe;
+      padding: 12px 16px; display: flex; align-items: center; gap: 12px;
     }
     .event-pill .ev-icon {
-      width: 36px; height: 36px;
-      background: #0f62fe;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
+      width: 36px; height: 36px; background: #0f62fe;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
-    .event-pill .ev-icon svg { color: #fff; }
     .event-pill .ev-details { flex: 1; }
     .event-pill .ev-details .name { font-size: 14px; font-weight: 600; }
     .event-pill .ev-details .meta { font-size: 12px; color: #525252; margin-top: 2px; }
@@ -167,15 +126,10 @@
       text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px;
     }
     .kpi-table-wrap { overflow-x: auto; }
-    .kpi-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-    }
+    .kpi-table { width: 100%; border-collapse: collapse; font-size: 12px; }
     .kpi-table th {
-      background: #161616; color: #fff;
-      padding: 8px 10px; text-align: left;
-      font-weight: 600; white-space: nowrap;
+      background: #161616; color: #fff; padding: 8px 10px;
+      text-align: left; font-weight: 600; white-space: nowrap;
     }
     .kpi-table th.num { text-align: right; }
     .kpi-table td { padding: 7px 10px; border-bottom: 1px solid #f4f4f4; }
@@ -184,44 +138,36 @@
     .kpi-table tr:hover td { background: #e8f0fd; }
     .kpi-table .total-col { font-weight: 600; color: #0f62fe; }
 
-    /* ── EPM section ─────────────────────────────────────────── */
-    .epm-options { display: flex; gap: 16px; margin-bottom: 20px; }
-    .epm-option {
-      flex: 1; border: 2px solid #e0e0e0; padding: 16px;
-      cursor: pointer; transition: border-color .15s, background .15s;
-      text-align: center;
+    /* ── XLSX Upload card ────────────────────────────────────── */
+    .upload-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 12px; margin-top: 4px;
     }
-    .epm-option.selected { border-color: #0f62fe; background: #e8f0fd; }
-    .epm-option .opt-icon { font-size: 28px; margin-bottom: 8px; }
-    .epm-option .opt-label { font-size: 13px; font-weight: 600; }
-    .epm-option .opt-desc { font-size: 11px; color: #6f6f6f; margin-top: 4px; }
+    .file-chip {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; border: 1px solid #e0e0e0;
+      font-size: 12px; background: #f9f9f9;
+    }
+    .file-chip .fc-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #8d8d8d; flex-shrink: 0;
+    }
+    .file-chip.loaded .fc-dot { background: #24a148; }
+    .file-chip .fc-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-chip .fc-count { font-size: 11px; color: #525252; white-space: nowrap; }
 
-    /* ── Upload area ─────────────────────────────────────────── */
-    #upload-area { display: none; }
+    /* ── Drop zone for XLSX files ────────────────────────────── */
     .drop-zone {
-      border: 2px dashed #8d8d8d;
-      padding: 32px;
-      text-align: center;
-      cursor: pointer;
+      border: 2px dashed #8d8d8d; padding: 28px;
+      text-align: center; cursor: pointer;
       transition: border-color .15s, background .15s;
-      position: relative;
+      position: relative; margin-bottom: 16px;
     }
     .drop-zone:hover, .drop-zone.dragover { border-color: #0f62fe; background: #e8f0fd; }
-    .drop-zone input[type=file] {
-      position: absolute; inset: 0; opacity: 0; cursor: pointer;
-    }
-    .drop-zone .dz-icon { font-size: 32px; margin-bottom: 8px; color: #8d8d8d; }
+    .drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .drop-zone .dz-icon { font-size: 28px; margin-bottom: 6px; color: #8d8d8d; }
     .drop-zone .dz-text { font-size: 14px; color: #525252; }
     .drop-zone .dz-hint { font-size: 12px; color: #8d8d8d; margin-top: 4px; }
-
-    #epm-preview-wrap { margin-top: 16px; display: none; }
-    #epm-preview-wrap img {
-      max-width: 100%; max-height: 300px;
-      border: 1px solid #e0e0e0; display: block;
-    }
-    #epm-preview-wrap .file-name {
-      font-size: 12px; color: #525252; margin-top: 6px;
-    }
 
     /* ── Generate button ─────────────────────────────────────── */
     .generate-section { margin-top: 8px; }
@@ -247,32 +193,64 @@
 
     .spinner {
       width: 18px; height: 18px;
-      border: 2px solid #0f62fe44;
-      border-top-color: #0f62fe;
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-      flex-shrink: 0;
+      border: 2px solid #0f62fe44; border-top-color: #0f62fe;
+      border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* ── Modal overlay ───────────────────────────────────────── */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: #161616cc;
+      display: none; align-items: center; justify-content: center; z-index: 999;
+    }
+    .modal-backdrop.visible { display: flex; }
+    .modal-box {
+      background: #fff; padding: 40px 44px; width: 100%; max-width: 520px;
+    }
+    .modal-box h2 {
+      font-size: 18px; font-weight: 600; margin-bottom: 6px; color: #161616;
+    }
+    .modal-box .modal-sub {
+      font-size: 13px; color: #525252; margin-bottom: 24px; line-height: 1.6;
+    }
+    .modal-box label {
+      display: block; font-size: 12px; font-weight: 600;
+      color: #525252; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em;
+    }
+    .modal-box input[type=text], .modal-box input[type=password] {
+      width: 100%; padding: 10px 14px; border: 1px solid #8d8d8d;
+      font-size: 14px; font-family: inherit; outline: none;
+      transition: border-color .15s; margin-bottom: 16px;
+    }
+    .modal-box input:focus { border-color: #0f62fe; box-shadow: 0 0 0 2px #0f62fe33; }
+    .modal-box .modal-footer { display: flex; gap: 12px; margin-top: 8px; align-items: center; }
+    .modal-primary {
+      background: #0f62fe; color: #fff; border: none;
+      padding: 12px 28px; font-size: 14px; font-family: inherit;
+      font-weight: 600; cursor: pointer;
+    }
+    .modal-primary:hover { background: #0353e9; }
+    .modal-skip {
+      background: none; border: none; color: #525252;
+      font-size: 13px; font-family: inherit; cursor: pointer;
+      text-decoration: underline;
+    }
+    .modal-skip:hover { color: #161616; }
+    .modal-err {
+      font-size: 12px; color: #da1e28; margin-top: -10px; margin-bottom: 12px; display: none;
+    }
+
     /* ── Loading overlay ─────────────────────────────────────── */
     #loading-overlay {
-      position: fixed; inset: 0;
-      background: #161616cc;
-      display: none; align-items: center; justify-content: center;
-      z-index: 999;
+      position: fixed; inset: 0; background: #161616cc;
+      display: none; align-items: center; justify-content: center; z-index: 998;
     }
     #loading-overlay.visible { display: flex; }
-    .loading-box {
-      background: #fff; padding: 40px 56px;
-      text-align: center;
-    }
+    .loading-box { background: #fff; padding: 40px 56px; text-align: center; }
     .loading-box .big-spinner {
       width: 48px; height: 48px;
-      border: 4px solid #0f62fe33;
-      border-top-color: #0f62fe;
-      border-radius: 50%;
-      animation: spin .8s linear infinite;
+      border: 4px solid #0f62fe33; border-top-color: #0f62fe;
+      border-radius: 50%; animation: spin .8s linear infinite;
       margin: 0 auto 16px;
     }
     .loading-box p { font-size: 15px; color: #161616; }
@@ -280,15 +258,19 @@
     footer {
       text-align: center; padding: 24px;
       font-size: 12px; color: #8d8d8d;
-      border-top: 1px solid #e0e0e0;
-      margin-top: 40px;
+      border-top: 1px solid #e0e0e0; margin-top: 40px;
+    }
+
+    /* ── Info box ────────────────────────────────────────────── */
+    .info-box {
+      background: #e8f0fd; border-left: 4px solid #0f62fe;
+      padding: 12px 16px; font-size: 13px; color: #161616; margin-bottom: 20px;
     }
   </style>
 </head>
 <body>
 
 <header>
-  <!-- IBM Logo (simplified) -->
   <svg width="40" height="16" viewBox="0 0 40 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect width="4" height="16" fill="white"/>
     <rect x="6" width="4" height="16" fill="white"/>
@@ -304,21 +286,43 @@
   </svg>
   <div>
     <h1>Quarterly Results Review — Presentation Generator</h1>
-    <div class="sub">Automate IBM event KPI reporting from the planning spreadsheets</div>
+    <div class="sub">Standalone · IBM Field Marketing · 2026</div>
+  </div>
+  <div class="header-actions">
+    <button class="header-btn" onclick="openApiSettings()">⚙ Airtable Settings</button>
   </div>
 </header>
 
 <main>
 
-  <!-- ── Step 1: Choose event ──────────────────────────────────────────────── -->
+  <!-- ── Step 1: Load XLSX files ────────────────────────────────────────────── -->
   <div class="card">
-    <h2><span class="step-badge">1</span> Select Event</h2>
+    <h2><span class="step-badge">1</span> Carregar Planilhas de KPI</h2>
+
+    <div class="info-box">
+      Selecione os arquivos <strong>.xlsx</strong> de planejamento (todos ao mesmo tempo ou um a um).
+      Os dados ficam na memória do browser — nenhum arquivo é enviado para nenhum servidor.
+    </div>
+
+    <div class="drop-zone" id="xlsx-drop-zone">
+      <input type="file" id="xlsx-file-input" accept=".xlsx" multiple />
+      <div class="dz-icon">📊</div>
+      <div class="dz-text">Arraste os arquivos .xlsx aqui</div>
+      <div class="dz-hint">ou clique para selecionar · aceita múltiplos arquivos</div>
+    </div>
+
+    <div class="upload-grid" id="file-chips"></div>
+  </div>
+
+  <!-- ── Step 2: Choose event ──────────────────────────────────────────────── -->
+  <div class="card">
+    <h2><span class="step-badge">2</span> Selecionar Evento</h2>
 
     <div class="search-wrap">
       <input
         type="text"
         id="event-search"
-        placeholder="Search by Brief code…"
+        placeholder="Buscar por código Brief…"
         autocomplete="off"
         spellcheck="false"
       />
@@ -336,12 +340,12 @@
           <div class="name" id="pill-name">—</div>
           <div class="meta" id="pill-meta">—</div>
         </div>
-        <button class="clear-btn" id="clear-event" title="Clear selection">✕</button>
+        <button class="clear-btn" id="clear-event" title="Limpar seleção">✕</button>
       </div>
     </div>
 
     <div id="kpi-preview">
-      <h3>KPI Projections found in spreadsheets</h3>
+      <h3>KPI Projections encontradas nas planilhas</h3>
       <div class="kpi-table-wrap">
         <table class="kpi-table" id="kpi-table">
           <thead>
@@ -362,39 +366,14 @@
     </div>
   </div>
 
-  <!-- ── Step 2: EPM Results ───────────────────────────────────────────────── -->
-  <div class="card" id="epm-card">
-    <h2>
-      <span class="step-badge">2</span>
-      EPM Results
-      <span id="epm-required-badge" style="font-size:11px;font-weight:500;color:#da1e28;margin-left:10px;letter-spacing:.04em;border:1px solid #da1e28;padding:1px 6px;border-radius:2px;">OBRIGATÓRIO</span>
-    </h2>
-
-    <p style="font-size:13px;color:#525252;margin-bottom:16px;">
-      Abra o sistema <strong>EPM</strong>, navegue até os resultados do evento selecionado e faça um <strong>print screen</strong>.<br>
-      Cole diretamente com <kbd style="background:#f4f4f4;border:1px solid #e0e0e0;padding:1px 6px;border-radius:2px;font-size:12px;font-family:monospace;">Ctrl+V</kbd> (ou Command+V no Mac), ou arraste/selecione o arquivo de imagem.
-    </p>
-
-    <div class="drop-zone" id="drop-zone">
-      <input type="file" id="epm-file-input" accept="image/*" />
-      <div class="dz-icon" id="dz-icon">🖼</div>
-      <div class="dz-text" id="dz-text">Arraste o screenshot do EPM aqui</div>
-      <div class="dz-hint">ou clique para selecionar · ou cole com Ctrl+V — PNG, JPG, BMP</div>
-    </div>
-    <div id="epm-preview-wrap">
-      <img id="epm-preview-img" src="" alt="EPM Preview"/>
-      <div class="file-name" id="epm-file-name"></div>
-      <button onclick="clearEpm()" style="margin-top:8px;background:none;border:1px solid #8d8d8d;padding:4px 12px;font-size:12px;cursor:pointer;color:#525252;font-family:inherit;">✕ Remover imagem</button>
-    </div>
-  </div>
-
   <!-- ── Step 3: Generate ──────────────────────────────────────────────────── -->
   <div class="card generate-section">
     <h2><span class="step-badge">3</span> Gerar Apresentação</h2>
     <p style="font-size:13px;color:#525252;margin-bottom:20px;">
-      O sistema abrirá o modelo <strong>Quarterly Results Review Template_8.18.pptx</strong>,
-      preencherá a tabela de KPIs e inserirá o screenshot do EPM — e fará o download do arquivo pronto para apresentação.<br>
-      <span style="color:#da1e28;font-size:12px;">Requer: evento selecionado + screenshot do EPM.</span>
+      Preenche a tabela de KPIs no modelo <strong>Quarterly Results Review Template_8.18.pptx</strong>
+      e faz o download do arquivo pronto.<br>
+      O espaço para o screenshot do EPM será mantido no slide — adicione a imagem manualmente no PowerPoint após o download.<br>
+      <span style="color:#6f6f6f;font-size:12px;">Requer: planilhas carregadas + evento selecionado.</span>
     </p>
     <button class="generate-btn" id="generate-btn" disabled onclick="generatePresentation()">
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0">
@@ -416,36 +395,378 @@
 <div id="loading-overlay">
   <div class="loading-box">
     <div class="big-spinner"></div>
-    <p id="overlay-text">Loading KPI data from spreadsheets…</p>
+    <p id="overlay-text">Processando…</p>
+  </div>
+</div>
+
+<!-- Airtable API settings modal -->
+<div class="modal-backdrop" id="api-modal">
+  <div class="modal-box">
+    <h2>Configurar Airtable</h2>
+    <p class="modal-sub">
+      Insira seu <strong>Personal Access Token</strong> do Airtable uma única vez. Ele será salvo localmente no seu navegador e não precisará ser reinserido.<br>
+      Base e tabela já estão configuradas automaticamente.<br>
+      <strong>Deixe em branco</strong> para usar o app sem integração Airtable (sem Expected Individuals / data do evento).
+    </p>
+
+    <label for="at-token">
+      Personal Access Token
+      <a href="https://airtable.com/create/tokens/new" target="_blank" rel="noopener noreferrer" style="font-weight:400;font-size:11px;color:#0f62fe;margin-left:6px;text-transform:none;letter-spacing:normal;">para buscar seu Airtable Token, clique aqui</a>
+    </label>
+    <input type="password" id="at-token" placeholder="patXXXXXXXXXXXXXX" autocomplete="off"/>
+
+    <div class="modal-err" id="modal-err"></div>
+
+    <div class="modal-footer">
+      <button class="modal-primary" onclick="saveApiSettings()">Salvar e Continuar</button>
+      <button class="modal-skip" onclick="skipApiSettings()">Pular por agora</button>
+    </div>
   </div>
 </div>
 
 <script>
-// ── State ──────────────────────────────────────────────────────────────────
-let allEvents = [];       // [{event_name, brief}, ...]
-let selectedEvent = null; // full event detail object
-let epmFile = null;
+// ═══════════════════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════════════════
+let allEvents   = {};   // { BRIEF_UPPER: { event_name, brief, kpi_rows[], ...airtable } }
+let selectedEvent = null;
+let airtableCache = {}; // brief_upper → airtable fields
 
-// ── Bootstrap ─────────────────────────────────────────────────────────────
-document.addEventListener("DOMContentLoaded", async () => {
-  showOverlay("Carregando dados de KPI das planilhas…");
-  try {
-    const r = await fetch("/api/events");
-    if (!r.ok) throw new Error("Não foi possível carregar os eventos");
-    allEvents = await r.json();
-    hideOverlay();
-    setStatus("info", `✓ ${allEvents.length} eventos carregados de todas as planilhas.`);
-    setTimeout(() => clearStatus(), 4000);
-  } catch (e) {
-    hideOverlay();
-    setStatus("error", "⚠ Não foi possível carregar os eventos — o servidor está rodando? " + e.message);
+// ═══════════════════════════════════════════════════════════════════════════════
+// BOOT — check if first time (no API key stored)
+// ═══════════════════════════════════════════════════════════════════════════════
+// Fixed Airtable base/table — extracted from the canonical URL
+const AT_BASE_ID  = "appcSYlaIYXL0UHy9";
+const AT_TABLE_ID = "tblFRyAdPMPYwU8Zr";
+
+document.addEventListener("DOMContentLoaded", () => {
+  const alreadyConfigured = localStorage.getItem("at_configured");
+  if (!alreadyConfigured) {
+    showModal();
+  } else {
+    document.getElementById("at-token").value = localStorage.getItem("at_token") || "";
   }
 });
 
-// ── Search / Dropdown ──────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// AIRTABLE SETTINGS MODAL
+// ═══════════════════════════════════════════════════════════════════════════════
+function showModal() {
+  document.getElementById("api-modal").classList.add("visible");
+}
+function closeModal() {
+  document.getElementById("api-modal").classList.remove("visible");
+}
+function openApiSettings() {
+  document.getElementById("at-token").value = localStorage.getItem("at_token") || "";
+  document.getElementById("modal-err").style.display = "none";
+  showModal();
+}
+
+function saveApiSettings() {
+  const token = document.getElementById("at-token").value.trim();
+  const errEl = document.getElementById("modal-err");
+  errEl.style.display = "none";
+
+  localStorage.setItem("at_token", token);
+  localStorage.setItem("at_configured", "1");
+  closeModal();
+  airtableCache = {};
+}
+
+function skipApiSettings() {
+  localStorage.setItem("at_configured", "1");
+  closeModal();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// XLSX — client-side loading with SheetJS
+// ═══════════════════════════════════════════════════════════════════════════════
+const xlsxDropZone  = document.getElementById("xlsx-drop-zone");
+const xlsxFileInput = document.getElementById("xlsx-file-input");
+
+xlsxFileInput.addEventListener("change", () => {
+  if (xlsxFileInput.files.length) processXlsxFiles([...xlsxFileInput.files]);
+});
+xlsxDropZone.addEventListener("dragover", (e) => {
+  e.preventDefault(); xlsxDropZone.classList.add("dragover");
+});
+xlsxDropZone.addEventListener("dragleave", () => xlsxDropZone.classList.remove("dragover"));
+xlsxDropZone.addEventListener("drop", (e) => {
+  e.preventDefault(); xlsxDropZone.classList.remove("dragover");
+  const files = [...e.dataTransfer.files].filter(f => f.name.endsWith(".xlsx"));
+  if (files.length) processXlsxFiles(files);
+});
+
+async function processXlsxFiles(files) {
+  showOverlay("Processando planilhas…");
+  for (const file of files) {
+    try {
+      await loadXlsx(file);
+    } catch (e) {
+      console.warn("Erro ao ler", file.name, e);
+    }
+  }
+  hideOverlay();
+  renderFileChips();
+  rebuildSearchIndex();
+  setStatus("info", `✓ ${Object.keys(allEvents).length} evento(s) carregado(s) das planilhas.`);
+  setTimeout(clearStatus, 5000);
+}
+
+async function loadXlsx(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: "array" });
+        for (const sheetName of wb.SheetNames) {
+          if (/option/i.test(sheetName) || sheetName.toLowerCase() === "sheet1") continue;
+          const ws = wb.Sheets[sheetName];
+          parseSheet(ws, sheetName, file.name);
+        }
+        resolve();
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function parseSheet(ws, sheetName, filename) {
+  // Convert to array-of-arrays (header: 1 means row 0 = header)
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+  // Find header row
+  const headerIdx = findHeaderRow(rows);
+  if (headerIdx === null) return;
+
+  const headers = rows[headerIdx].map(c => (c != null ? String(c).trim() : ""));
+
+  // Resolve column indices
+  const icol = {
+    name:  colIndex(headers, "event name"),
+    brief: colIndex(headers, "brief"),
+    ut15:  colIndex(headers, "ut 15"),
+    ut17:  colIndex(headers, "ut 17"),
+    cq:    colIndexExact(headers, "cq"),
+    nq:    colIndexExact(headers, "nq"),
+    nq1:   colIndexExact(headers, "nq+1"),
+    nq2:   colIndexExact(headers, "nq+2"),
+    total: colIndexTotal(headers),
+  };
+
+  if (icol.name === null || icol.brief === null) return;
+
+  const quarter = ["Q2","Q3","Q4","Q1"].find(q => sheetName.toUpperCase().includes(q)) || "Q2";
+
+  let currentName = null, currentBrief = null;
+
+  for (let r = headerIdx + 1; r < rows.length; r++) {
+    const row = rows[r];
+    const nameVal  = icol.name  !== null ? row[icol.name]  : null;
+    const briefVal = icol.brief !== null ? row[icol.brief] : null;
+
+    if (nameVal  != null && String(nameVal).trim())  currentName  = String(nameVal).trim();
+    if (briefVal != null && String(briefVal).trim()) currentBrief = String(briefVal).trim();
+
+    if (!currentBrief) continue;
+
+    const getNum = (key) => {
+      if (icol[key] === null) return null;
+      const v = row[icol[key]];
+      if (v == null) return null;
+      const n = parseFloat(v);
+      return isNaN(n) ? null : n;
+    };
+
+    const cq = getNum("cq"), nq = getNum("nq"), nq1 = getNum("nq1"), nq2 = getNum("nq2");
+    const total = getNum("total");
+
+    if (cq === null && nq === null && nq1 === null && nq2 === null && total === null) continue;
+
+    const ut15 = icol.ut15 !== null && row[icol.ut15] != null ? String(row[icol.ut15]).trim() : "";
+    const ut17 = icol.ut17 !== null && row[icol.ut17] != null ? String(row[icol.ut17]).trim() : "";
+
+    const kpiRow = {
+      event_name: currentName || "",
+      brief: currentBrief,
+      ut15, ut17, cq, nq, nq1, nq2, total,
+      quarter, source_file: filename,
+    };
+
+    const key = currentBrief.toUpperCase();
+    if (!allEvents[key]) {
+      allEvents[key] = { event_name: currentName || "", brief: currentBrief, kpi_rows: [] };
+    }
+    allEvents[key].kpi_rows.push(kpiRow);
+    if (currentName) allEvents[key].event_name = currentName;
+  }
+}
+
+// ── Header/Column helpers ─────────────────────────────────────────────────────
+function findHeaderRow(rows) {
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i].map(c => (c != null ? String(c).trim().toLowerCase() : ""));
+    if (r.includes("event name") && r.includes("brief")) return i;
+  }
+  return null;
+}
+
+function colIndex(headers, ...candidates) {
+  for (const name of candidates) {
+    const nl = name.toLowerCase();
+    let idx = headers.findIndex(h => h && h.toLowerCase() === nl);
+    if (idx !== -1) return idx;
+    idx = headers.findIndex(h => h && h.toLowerCase().startsWith(nl));
+    if (idx !== -1) return idx;
+    idx = headers.findIndex(h => h && h.toLowerCase().includes(nl));
+    if (idx !== -1) return idx;
+  }
+  return null;
+}
+
+function colIndexExact(headers, name) {
+  // Match "CQ", "NQ", "NQ+1", "NQ+2" — strip any "(Q1 26)" suffix
+  const nl = name.toUpperCase();
+  for (let i = 0; i < headers.length; i++) {
+    const h = headers[i] ? headers[i].toUpperCase().split("(")[0].trim() : "";
+    if (h === nl) return i;
+  }
+  return null;
+}
+
+function colIndexTotal(headers) {
+  for (const exact of ["totals", "total", "total sql"]) {
+    const idx = headers.findIndex(h => h && h.toLowerCase() === exact);
+    if (idx !== -1) return idx;
+  }
+  for (let i = 0; i < headers.length; i++) {
+    const hl = headers[i] ? headers[i].toLowerCase() : "";
+    if (hl.startsWith("total") && hl !== "total sqlr" && !hl.includes("sqlr")) return i;
+  }
+  return null;
+}
+
+// ── File chips UI ─────────────────────────────────────────────────────────────
+function renderFileChips() {
+  const container = document.getElementById("file-chips");
+  // Collect unique filenames loaded
+  const fileMap = {};
+  for (const ev of Object.values(allEvents)) {
+    for (const row of ev.kpi_rows) {
+      fileMap[row.source_file] = (fileMap[row.source_file] || 0) + 1;
+    }
+  }
+  container.innerHTML = "";
+  for (const [fname, count] of Object.entries(fileMap)) {
+    const chip = document.createElement("div");
+    chip.className = "file-chip loaded";
+    chip.innerHTML = `<span class="fc-dot"></span><span class="fc-name" title="${escHtml(fname)}">${escHtml(fname)}</span><span class="fc-count">${count} KPI rows</span>`;
+    container.appendChild(chip);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AIRTABLE — fetch event data (date, expected individuals)
+// ═══════════════════════════════════════════════════════════════════════════════
+const AT_BRIEF_FIELD    = "🔷EMB #";
+const AT_EXPECTED_FIELD = "🔹Expected Responses";
+const AT_DATE_FIELD     = "🔷Start Date";
+
+async function fetchAirtableForBrief(brief) {
+  const key = brief.toUpperCase();
+  if (airtableCache[key] !== undefined) return airtableCache[key];
+
+  const token = localStorage.getItem("at_token") || "";
+  const base  = AT_BASE_ID;
+  const table = AT_TABLE_ID;
+
+  if (!token) {
+    airtableCache[key] = null;
+    return null;
+  }
+
+  try {
+    // Filter by the brief field
+    const filterFormula = encodeURIComponent(`{${AT_BRIEF_FIELD}}="${brief}"`);
+    const url = `https://api.airtable.com/v0/${base}/${table}?filterByFormula=${filterFormula}&maxRecords=5`;
+    const resp = await fetch(url, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    if (!resp.ok) {
+      airtableCache[key] = null;
+      return null;
+    }
+    const data = await resp.json();
+    const record = data.records && data.records[0];
+    if (!record) { airtableCache[key] = null; return null; }
+
+    const fields = record.fields || {};
+    const rawDate = fields[AT_DATE_FIELD];
+    const eventDate = parseAirtableDate(rawDate);
+    const result = {
+      event_date: eventDate ? eventDate.toISOString().split("T")[0] : "",
+      expected_individuals: fields[AT_EXPECTED_FIELD] ?? null,
+      expected_sqor_bucket: quarterBucket(eventDate),
+    };
+    airtableCache[key] = result;
+    return result;
+  } catch (e) {
+    airtableCache[key] = null;
+    return null;
+  }
+}
+
+function parseAirtableDate(value) {
+  if (!value) return null;
+  if (Array.isArray(value)) {
+    for (const v of value) { const d = parseAirtableDate(v); if (d) return d; }
+    return null;
+  }
+  const text = String(value).trim().replace("Z", "+00:00");
+  const attempts = [
+    () => new Date(text),
+    () => { const [m,d,y] = text.split("/"); return new Date(y, m-1, d); },
+  ];
+  for (const fn of attempts) {
+    try { const d = fn(); if (!isNaN(d)) return d; } catch(_) {}
+  }
+  return null;
+}
+
+function quarterBucket(eventDate) {
+  if (!eventDate) return null;
+  const now = new Date();
+  const months = (now.getFullYear() - eventDate.getFullYear()) * 12 + (now.getMonth() - eventDate.getMonth());
+  const q = Math.floor(months / 3);
+  if (q <= 0) return "CQ";
+  if (q === 1) return "NQ";
+  if (q === 2) return "NQ+1";
+  return "NQ+2";
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SEARCH / DROPDOWN
+// ═══════════════════════════════════════════════════════════════════════════════
+let searchIndex = [];   // [{event_name, brief}]
+let focusedIdx  = -1;
+
+function rebuildSearchIndex() {
+  const seen = new Set();
+  searchIndex = [];
+  for (const [key, ev] of Object.entries(allEvents)) {
+    if (seen.has(key)) continue;
+    seen.add(key);
+    searchIndex.push({ event_name: ev.event_name, brief: ev.brief });
+  }
+  searchIndex.sort((a, b) => a.event_name.localeCompare(b.event_name));
+}
+
 const searchInput = document.getElementById("event-search");
 const dropdown    = document.getElementById("event-dropdown");
-let focusedIdx = -1;
 
 searchInput.addEventListener("input", onSearch);
 searchInput.addEventListener("keydown", onSearchKeyDown);
@@ -453,24 +774,13 @@ document.addEventListener("click", (e) => {
   if (!e.target.closest(".search-wrap")) closeDropdown();
 });
 
-async function onSearch() {
+function onSearch() {
   const q = searchInput.value.trim().toLowerCase();
   if (!q) { closeDropdown(); return; }
 
-  let matches = allEvents.filter(ev =>
-    ev.brief.toLowerCase().includes(q)
+  const matches = searchIndex.filter(ev =>
+    ev.brief.toLowerCase().includes(q) || ev.event_name.toLowerCase().includes(q)
   ).slice(0, 50);
-
-  if (!matches.length && q.length >= 4) {
-    try {
-      const r = await fetch(`/api/event/${encodeURIComponent(q)}`);
-      if (r.ok) {
-        const ev = await r.json();
-        matches = [{ event_name: ev.event_name, brief: ev.brief }];
-      }
-    } catch (_) {
-    }
-  }
 
   renderDropdown(matches, q);
 }
@@ -478,26 +788,20 @@ async function onSearch() {
 function renderDropdown(matches, q) {
   dropdown.innerHTML = "";
   focusedIdx = -1;
-
   if (!matches.length) {
-    dropdown.innerHTML = `<div class="dropdown-empty">Nenhum evento encontrado para "${escHtml(q)}"</div>`;
+    dropdown.innerHTML = `<div class="dropdown-empty">Nenhum evento para "${escHtml(q)}"</div>`;
     dropdown.classList.add("open");
     return;
   }
-
   matches.forEach((ev, i) => {
     const item = document.createElement("div");
     item.className = "dropdown-item";
-    item.setAttribute("role", "option");
     item.setAttribute("data-idx", i);
     item.innerHTML = `
       <span class="ev-name">${highlight(escHtml(ev.event_name), q)}</span>
       <span class="ev-brief">${highlight(escHtml(ev.brief), q)}</span>
     `;
-    item.addEventListener("mousedown", (e) => {
-      e.preventDefault();
-      selectEvent(ev);
-    });
+    item.addEventListener("mousedown", (e) => { e.preventDefault(); selectEvent(ev); });
     dropdown.appendChild(item);
   });
   dropdown.classList.add("open");
@@ -507,30 +811,15 @@ function renderDropdown(matches, q) {
 function onSearchKeyDown(e) {
   const items = dropdown.querySelectorAll(".dropdown-item");
   if (!items.length) return;
-
-  if (e.key === "ArrowDown") {
-    e.preventDefault();
-    focusedIdx = Math.min(focusedIdx + 1, items.length - 1);
-    updateFocus(items);
-  } else if (e.key === "ArrowUp") {
-    e.preventDefault();
-    focusedIdx = Math.max(focusedIdx - 1, 0);
-    updateFocus(items);
-  } else if (e.key === "Enter") {
-    e.preventDefault();
-    if (focusedIdx >= 0 && dropdown._matches) {
-      selectEvent(dropdown._matches[focusedIdx]);
-    }
-  } else if (e.key === "Escape") {
-    closeDropdown();
-  }
+  if (e.key === "ArrowDown") { e.preventDefault(); focusedIdx = Math.min(focusedIdx + 1, items.length - 1); updateFocus(items); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); focusedIdx = Math.max(focusedIdx - 1, 0); updateFocus(items); }
+  else if (e.key === "Enter") { e.preventDefault(); if (focusedIdx >= 0 && dropdown._matches) selectEvent(dropdown._matches[focusedIdx]); }
+  else if (e.key === "Escape") closeDropdown();
 }
-
 function updateFocus(items) {
   items.forEach((it, i) => it.classList.toggle("focused", i === focusedIdx));
   if (focusedIdx >= 0) items[focusedIdx].scrollIntoView({ block: "nearest" });
 }
-
 function closeDropdown() {
   dropdown.classList.remove("open");
   dropdown.innerHTML = "";
@@ -541,12 +830,17 @@ async function selectEvent(ev) {
   searchInput.value = ev.brief;
   selectedEvent = null;
 
-  // Fetch full detail
   showOverlay(`Carregando KPIs de ${ev.event_name}…`);
   try {
-    const r = await fetch(`/api/event/${encodeURIComponent(ev.brief)}`);
-    if (!r.ok) throw new Error("Evento não encontrado");
-    selectedEvent = await r.json();
+    const key = ev.brief.toUpperCase();
+    const eventData = allEvents[key];
+    if (!eventData) throw new Error("Evento não encontrado na memória");
+
+    // Try to enrich with Airtable data
+    const atData = await fetchAirtableForBrief(ev.brief);
+    if (atData) Object.assign(eventData, atData);
+
+    selectedEvent = eventData;
     hideOverlay();
     renderSelectedEvent(selectedEvent);
   } catch (e) {
@@ -556,15 +850,14 @@ async function selectEvent(ev) {
 }
 
 function renderSelectedEvent(ev) {
-  // Pill
   document.getElementById("pill-name").textContent = ev.event_name;
-  const rows = ev.kpi_rows || [];
+  const rows    = ev.kpi_rows || [];
   const sources = [...new Set(rows.map(r => r.source_file))];
+  const atInfo  = ev.event_date ? ` · Data: ${ev.event_date}` : "";
   document.getElementById("pill-meta").textContent =
-    `Brief: ${ev.brief}  ·  ${rows.length} KPI row(s) across ${sources.length} file(s)`;
+    `Brief: ${ev.brief}  ·  ${rows.length} KPI row(s) · ${sources.length} arquivo(s)${atInfo}`;
   document.getElementById("selected-event-info").style.display = "block";
 
-  // KPI table
   const tbody = document.getElementById("kpi-tbody");
   tbody.innerHTML = "";
   rows.forEach(row => {
@@ -584,7 +877,6 @@ function renderSelectedEvent(ev) {
     tbody.appendChild(tr);
   });
   document.getElementById("kpi-preview").style.display = rows.length ? "block" : "none";
-
   updateGenerateBtn();
 }
 
@@ -596,115 +888,232 @@ document.getElementById("clear-event").addEventListener("click", () => {
   updateGenerateBtn();
 });
 
-// ── File Upload / Drop ─────────────────────────────────────────────────────
-function clearEpm() {
-  epmFile = null;
-  document.getElementById("epm-file-input").value = "";
-  document.getElementById("epm-preview-wrap").style.display = "none";
-  document.getElementById("dz-icon").textContent = "🖼";
-  document.getElementById("dz-text").textContent = "Arraste o screenshot do EPM aqui";
-  updateGenerateBtn();
-}
-
-// ── File Upload / Drop ─────────────────────────────────────────────────────
-const dropZone = document.getElementById("drop-zone");
-const fileInput = document.getElementById("epm-file-input");
-
-fileInput.addEventListener("change", () => {
-  if (fileInput.files[0]) handleEpmFile(fileInput.files[0]);
-});
-
-dropZone.addEventListener("dragover", (e) => {
-  e.preventDefault();
-  dropZone.classList.add("dragover");
-});
-dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
-dropZone.addEventListener("drop", (e) => {
-  e.preventDefault();
-  dropZone.classList.remove("dragover");
-  if (e.dataTransfer.files[0]) handleEpmFile(e.dataTransfer.files[0]);
-});
-
-// Clipboard paste support (always active — EPM is mandatory)
-document.addEventListener("paste", (e) => {
-  const items = e.clipboardData?.items;
-  if (!items) return;
-  for (const item of items) {
-    if (item.type.startsWith("image/")) {
-      const file = item.getAsFile();
-      if (file) { handleEpmFile(file); break; }
-    }
-  }
-});
-
-function handleEpmFile(file) {
-  epmFile = file;
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    const img = document.getElementById("epm-preview-img");
-    img.src = ev.target.result;
-    document.getElementById("epm-file-name").textContent = file.name || "imagem colada";
-    document.getElementById("epm-preview-wrap").style.display = "block";
-    document.getElementById("dz-icon").textContent = "✅";
-    document.getElementById("dz-text").textContent = "Screenshot do EPM carregado";
-    updateGenerateBtn();
-  };
-  reader.readAsDataURL(file);
-}
-
-// ── Generate ───────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+// GENERATE BUTTON STATE
+// ═══════════════════════════════════════════════════════════════════════════════
 function updateGenerateBtn() {
-  // Both event AND epm image are required
-  const ready = selectedEvent && epmFile;
-  const btn = document.getElementById("generate-btn");
-  btn.disabled = !ready;
-  // Show hint if event selected but no EPM yet
-  const epmCard = document.getElementById("epm-card");
-  if (selectedEvent && !epmFile) {
-    epmCard.style.border = "2px solid #da1e28";
-  } else {
-    epmCard.style.border = "";
-  }
+  document.getElementById("generate-btn").disabled = !selectedEvent;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PPTX GENERATION — client-side with PptxGenJS
+// ═══════════════════════════════════════════════════════════════════════════════
 async function generatePresentation() {
-  if (!selectedEvent || !epmFile) return;
+  if (!selectedEvent) return;
 
   const btn = document.getElementById("generate-btn");
   btn.disabled = true;
   setStatus("info", "Gerando apresentação…", true);
 
-  const fd = new FormData();
-  fd.append("brief", selectedEvent.brief);
-  fd.append("epm_image", epmFile, epmFile.name || "epm_screenshot.png");
-
   try {
-    const r = await fetch("/api/generate", { method: "POST", body: fd });
-    if (!r.ok) {
-      const err = await r.json().catch(() => ({ error: r.statusText }));
-      throw new Error(err.error || r.statusText);
-    }
-    const blob = await r.blob();
-    const contentDisposition = r.headers.get("Content-Disposition") || "";
-    const fnMatch = contentDisposition.match(/filename="?([^";\n]+)"?/);
-    const filename = fnMatch ? fnMatch[1] : "Quarterly_Results_Review.pptx";
+    const pptx = new PptxGenJS();
+    pptx.layout = "LAYOUT_WIDE"; // 13.33" x 7.5"
 
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    // We generate only the core content slide (KPI table + placeholders).
+    // The user can merge this into the full template manually if needed,
+    // or we replicate the template's key slide here.
+    buildKpiSlide(pptx, selectedEvent);
+    buildSummarySlide(pptx, selectedEvent);
 
-    setStatus("ok", `✓ "${filename}" baixado com sucesso. Abra no PowerPoint para finalizar.`);
+    const safe = selectedEvent.event_name.replace(/[^\w\-]/g, "_").substring(0, 60);
+    const filename = `${safe}_${selectedEvent.brief}_Results.pptx`;
+
+    await pptx.writeFile({ fileName: filename });
+    setStatus("ok", `✓ "${filename}" baixado. Abra no PowerPoint para adicionar o screenshot do EPM e finalizar.`);
   } catch (e) {
     setStatus("error", "⚠ Erro ao gerar apresentação: " + e.message);
+    console.error(e);
   } finally {
-    btn.disabled = !(selectedEvent && epmFile);
+    btn.disabled = !selectedEvent;
   }
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// ── Slide 1: Title / Summary slide ───────────────────────────────────────────
+function buildSummarySlide(pptx, ev) {
+  const slide = pptx.addSlide();
+
+  // Background
+  slide.background = { color: "FFFFFF" };
+
+  // Blue top bar
+  slide.addShape(pptx.ShapeType.rect, {
+    x: 0, y: 0, w: "100%", h: 0.6,
+    fill: { color: "0F62FE" },
+    line: { type: "none" },
+  });
+
+  // IBM logo text (top bar)
+  slide.addText("IBM", {
+    x: 0.3, y: 0.1, w: 1, h: 0.4,
+    fontSize: 18, bold: true, color: "FFFFFF", fontFace: "IBM Plex Sans",
+  });
+
+  // Event title
+  slide.addText(ev.event_name || "[Event Name]", {
+    x: 0.5, y: 0.8, w: 12, h: 0.8,
+    fontSize: 28, bold: true, color: "161616", fontFace: "IBM Plex Sans",
+  });
+
+  // Brief / date row
+  const datePart = ev.event_date ? `  ·  ${ev.event_date}` : "";
+  slide.addText(`Brief: ${ev.brief}${datePart}`, {
+    x: 0.5, y: 1.5, w: 12, h: 0.4,
+    fontSize: 14, color: "525252", fontFace: "IBM Plex Sans",
+  });
+
+  // Divider
+  slide.addShape(pptx.ShapeType.line, {
+    x: 0.5, y: 2.0, w: 12.3, h: 0,
+    line: { color: "E0E0E0", width: 1 },
+  });
+
+  // Expected Individuals table header
+  slide.addText("Expected Individuals", {
+    x: 0.5, y: 2.2, w: 3.5, h: 0.3,
+    fontSize: 11, bold: true, color: "525252", fontFace: "IBM Plex Sans",
+  });
+
+  const expInd = ev.expected_individuals != null ? String(ev.expected_individuals) : "—";
+  const indRows = [
+    [
+      { text: "Expected", options: { bold: true, color: "FFFFFF", fill: "161616", align: "center" } },
+      { text: "Actual", options: { bold: true, color: "FFFFFF", fill: "161616", align: "center" } },
+      { text: "Delta", options: { bold: true, color: "FFFFFF", fill: "161616", align: "center" } },
+    ],
+    [
+      { text: expInd, options: { align: "center", color: "161616" } },
+      { text: " ", options: { align: "center", color: "161616" } },
+      { text: " ", options: { align: "center", color: "161616" } },
+    ],
+  ];
+  slide.addTable(indRows, {
+    x: 0.5, y: 2.55, w: 5, colW: [1.67, 1.67, 1.67],
+    fontSize: 12, fontFace: "IBM Plex Sans",
+    border: { type: "solid", pt: 1, color: "E0E0E0" },
+  });
+
+  // SQOR table header
+  const sqorBucket = ev.expected_sqor_bucket || "QX";
+  slide.addText(`Expected SQOR by end of ${sqorBucket}`, {
+    x: 6.5, y: 2.2, w: 6, h: 0.3,
+    fontSize: 11, bold: true, color: "525252", fontFace: "IBM Plex Sans",
+  });
+
+  const epmPullDate = new Date().toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "2-digit" });
+  const sqorRows = [
+    [
+      { text: `Expected SQOR end of ${sqorBucket}`, options: { bold: true, color: "FFFFFF", fill: "161616", align: "center" } },
+      { text: `Actual SQOR as of ${epmPullDate}`, options: { bold: true, color: "FFFFFF", fill: "161616", align: "center" } },
+      { text: "Delta", options: { bold: true, color: "FFFFFF", fill: "161616", align: "center" } },
+    ],
+    [
+      { text: calcExpectedSqor(ev, sqorBucket), options: { align: "center", color: "161616" } },
+      { text: " ", options: { align: "center", color: "161616" } },
+      { text: " ", options: { align: "center", color: "161616" } },
+    ],
+  ];
+  slide.addTable(sqorRows, {
+    x: 6.5, y: 2.55, w: 6.3, colW: [2.1, 2.1, 2.1],
+    fontSize: 12, fontFace: "IBM Plex Sans",
+    border: { type: "solid", pt: 1, color: "E0E0E0" },
+  });
+
+  // ── EPM screenshot placeholder ────────────────────────────────────────────
+  slide.addShape(pptx.ShapeType.rect, {
+    x: 0.5, y: 3.6, w: 12.3, h: 3.2,
+    fill: { type: "none" },
+    line: { color: "8D8D8D", width: 1.5, dashType: "dash" },
+  });
+
+  slide.addText("[ Cole aqui o screenshot do EPM Dashboard no PowerPoint ]", {
+    x: 0.5, y: 3.6, w: 12.3, h: 3.2,
+    fontSize: 13, color: "8D8D8D", align: "center", valign: "middle",
+    fontFace: "IBM Plex Sans", italic: true,
+  });
+}
+
+function calcExpectedSqor(ev, bucket) {
+  const key = { CQ: "cq", NQ: "nq", "NQ+1": "nq1", "NQ+2": "nq2" }[bucket];
+  if (!key) return "—";
+  const total = (ev.kpi_rows || []).reduce((s, r) => s + (r[key] || 0), 0);
+  return total ? fmtCur(total) : "—";
+}
+
+// ── Slide 2: KPI Table slide ──────────────────────────────────────────────────
+function buildKpiSlide(pptx, ev) {
+  const slide = pptx.addSlide();
+  slide.background = { color: "FFFFFF" };
+
+  // Blue top bar
+  slide.addShape(pptx.ShapeType.rect, {
+    x: 0, y: 0, w: "100%", h: 0.6,
+    fill: { color: "0F62FE" }, line: { type: "none" },
+  });
+  slide.addText("IBM", {
+    x: 0.3, y: 0.1, w: 1, h: 0.4,
+    fontSize: 18, bold: true, color: "FFFFFF", fontFace: "IBM Plex Sans",
+  });
+
+  slide.addText("KPI Projections", {
+    x: 0.5, y: 0.75, w: 12, h: 0.5,
+    fontSize: 20, bold: true, color: "161616", fontFace: "IBM Plex Sans",
+  });
+  slide.addText(ev.event_name, {
+    x: 0.5, y: 1.2, w: 12, h: 0.35,
+    fontSize: 13, color: "525252", fontFace: "IBM Plex Sans",
+  });
+
+  const kpiRows = ev.kpi_rows || [];
+  if (!kpiRows.length) {
+    slide.addText("Nenhuma projeção KPI encontrada para este evento.", {
+      x: 0.5, y: 2, w: 12, h: 1,
+      fontSize: 13, color: "DA1E28", fontFace: "IBM Plex Sans",
+    });
+    return;
+  }
+
+  // Build table data
+  const headerRow = [
+    { text: "Event name",  options: { bold: true, color: "FFFFFF", fill: "161616" } },
+    { text: "Brief",       options: { bold: true, color: "FFFFFF", fill: "161616" } },
+    { text: "UT 15",       options: { bold: true, color: "FFFFFF", fill: "161616" } },
+    { text: "UT 17",       options: { bold: true, color: "FFFFFF", fill: "161616" } },
+    { text: "CQ",          options: { bold: true, color: "FFFFFF", fill: "161616", align: "right" } },
+    { text: "NQ",          options: { bold: true, color: "FFFFFF", fill: "161616", align: "right" } },
+    { text: "NQ+1",        options: { bold: true, color: "FFFFFF", fill: "161616", align: "right" } },
+    { text: "NQ+2",        options: { bold: true, color: "FFFFFF", fill: "161616", align: "right" } },
+    { text: "Total",       options: { bold: true, color: "FFFFFF", fill: "161616", align: "right" } },
+  ];
+
+  const dataRows = kpiRows.map((row, idx) => {
+    const total = row.total != null ? row.total
+      : ((row.cq||0)+(row.nq||0)+(row.nq1||0)+(row.nq2||0));
+    const fill = idx % 2 === 0 ? "FFFFFF" : "F9F9F9";
+    return [
+      { text: row.event_name || "", options: { fill, color: "161616" } },
+      { text: row.brief || "",      options: { fill, color: "161616" } },
+      { text: row.ut15 || "",       options: { fill, color: "161616" } },
+      { text: row.ut17 || "",       options: { fill, color: "161616" } },
+      { text: fmtCur(row.cq),       options: { fill, color: "161616", align: "right" } },
+      { text: fmtCur(row.nq),       options: { fill, color: "161616", align: "right" } },
+      { text: fmtCur(row.nq1),      options: { fill, color: "161616", align: "right" } },
+      { text: fmtCur(row.nq2),      options: { fill, color: "161616", align: "right" } },
+      { text: fmtCur(total),        options: { fill, color: "0F62FE", bold: true, align: "right" } },
+    ];
+  });
+
+  slide.addTable([headerRow, ...dataRows], {
+    x: 0.3, y: 1.65, w: 12.7,
+    colW: [2.4, 0.9, 1.0, 1.0, 0.9, 0.9, 0.9, 0.9, 1.0],
+    fontSize: 10, fontFace: "IBM Plex Sans",
+    border: { type: "solid", pt: 0.5, color: "E0E0E0" },
+    rowH: 0.28,
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════════════════════════════
 function showOverlay(msg) {
   document.getElementById("overlay-text").textContent = msg;
   document.getElementById("loading-overlay").classList.add("visible");
@@ -726,13 +1135,11 @@ function clearStatus() {
 function escHtml(str) {
   return (str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
-
 function highlight(html, q) {
   if (!q) return html;
   const re = new RegExp("(" + q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "gi");
   return html.replace(re, "<mark>$1</mark>");
 }
-
 function fmtCur(v) {
   if (v == null) return "—";
   return "$" + Number(v).toLocaleString("en-US", { maximumFractionDigits: 0 });

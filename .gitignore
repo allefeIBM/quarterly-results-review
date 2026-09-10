@@ -1,4 +1,4 @@
-# ── Python ──────────────────────────────────────────────────────────────────
+# ── Python / backend (not used anymore) ─────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
@@ -11,9 +11,20 @@ ENV/
 *.egg-info/
 dist/
 build/
+*.py
+requirements.txt
+*.command
+
+# ── XLSX data files (loaded from Box at runtime) ─────────────────────────────
+*.xlsx
+*.xls
+
+# ── PPTX template (not needed in repo) ───────────────────────────────────────
+*.pptx
 
 # ── Environment / secrets ────────────────────────────────────────────────────
 .env
+.env.example
 
 # ── macOS ────────────────────────────────────────────────────────────────────
 .DS_Store
@@ -30,10 +41,6 @@ Desktop.ini
 .idea/
 *.swp
 *~
-
-# ── Temp / lock files created by Excel ──────────────────────────────────────
-~$*.xlsx
-~$*.xls
 
 # ── Bob AI workspace metadata ────────────────────────────────────────────────
 .bob/
