@@ -297,43 +297,24 @@
 
 <main>
 
-  <!-- ── Step 1: Status dos dados ──────────────────────────────────────────── -->
-  <div class="card" id="box-card">
-    <h2><span class="step-badge">1</span> Dados de KPI</h2>
+  <!-- ── Data status bar (subtle, top of main) ─────────────────────────────── -->
+  <div id="data-status-box" style="display:none; margin-bottom:16px; padding:10px 16px; font-size:13px; border-left:4px solid #24a148; background:#defbe6;"></div>
 
-    <!-- Loaded from data.json -->
-    <div id="box-connected">
-      <div id="data-status-box" class="info-box" style="margin-bottom:16px;">
-        ⏳ Carregando dados das planilhas…
-      </div>
-      <div class="upload-grid" id="file-chips"></div>
-    </div>
-
-    <!-- Box integration (disabled — pending IBM admin approval) -->
-    <!-- BOX_DISABLED
+  <!-- BOX_DISABLED
+  <div id="box-card">
     <div id="box-not-connected">
-      <div class="info-box" style="margin-bottom:20px;">
-        As planilhas de KPI são carregadas automaticamente a partir da pasta do Box.<br>
-        Clique no botão abaixo para autenticar — você só precisa fazer isso <strong>uma vez a cada 60 dias</strong>.
-      </div>
-      <a id="box-connect-link" href="#" onclick="boxConnect(); return false;"
-         style="display:inline-flex;align-items:center;gap:8px;background:#0353e9;color:#fff;border:none;padding:14px 32px;font-size:15px;font-family:inherit;font-weight:600;cursor:pointer;text-decoration:none;">
-        📁 Conectar ao Box
-      </a>
+      <a id="box-connect-link" href="#" onclick="boxConnect(); return false;">📁 Conectar ao Box</a>
     </div>
     <div id="box-connected-box" style="display:none;">
-      <div class="info-box" style="background:#defbe6; border-color:#24a148; margin-bottom:16px;">
-        ✓ Conectado ao Box — planilhas carregadas automaticamente.
-      </div>
       <div class="upload-grid" id="file-chips-box"></div>
-      <button onclick="boxReload()" style="margin-top:14px;background:none;border:1px solid #8d8d8d;padding:6px 16px;font-size:12px;cursor:pointer;color:#525252;font-family:inherit;">↺ Recarregar planilhas do Box</button>
+      <button onclick="boxReload()">↺ Recarregar planilhas do Box</button>
     </div>
-    BOX_DISABLED -->
   </div>
+  BOX_DISABLED -->
 
-  <!-- ── Step 2: Choose event ──────────────────────────────────────────────── -->
+  <!-- ── Step 1: Choose event ──────────────────────────────────────────────── -->
   <div class="card">
-    <h2><span class="step-badge">2</span> Selecionar Evento</h2>
+    <h2><span class="step-badge">1</span> Selecionar Evento</h2>
 
     <div class="search-wrap">
       <input
@@ -383,9 +364,9 @@
     </div>
   </div>
 
-  <!-- ── Step 3: Generate ──────────────────────────────────────────────────── -->
+  <!-- ── Step 2: Generate ──────────────────────────────────────────────────── -->
   <div class="card generate-section">
-    <h2><span class="step-badge">3</span> Gerar Apresentação</h2>
+    <h2><span class="step-badge">2</span> Gerar Apresentação</h2>
     <p style="font-size:13px;color:#525252;margin-bottom:20px;">
       Preenche a tabela de KPIs no modelo <strong>Quarterly Results Review Template_8.18.pptx</strong>
       e faz o download do arquivo pronto.<br>
@@ -500,35 +481,28 @@ document.addEventListener("DOMContentLoaded", () => {
 function setDataStatus(type, html) {
   const el = document.getElementById("data-status-box");
   if (!el) return;
+  el.style.display = "block";
   if (type === "ok") {
     el.style.background = "#defbe6";
-    el.style.borderColor = "#24a148";
     el.style.borderLeftColor = "#24a148";
+    // Auto-hide success after 6 seconds
+    setTimeout(() => { el.style.display = "none"; }, 6000);
   } else if (type === "error") {
     el.style.background = "#fff1f1";
-    el.style.borderColor = "#da1e28";
     el.style.borderLeftColor = "#da1e28";
   } else {
     el.style.background = "#e8f0fd";
-    el.style.borderColor = "#0f62fe";
     el.style.borderLeftColor = "#0f62fe";
   }
   el.innerHTML = html;
 }
 
 async function loadFromDataJson() {
-  setDataStatus("info", "⏳ Carregando dados das planilhas…");
   try {
-    const url = "data.json?v=" + Date.now();
-    setDataStatus("info", `⏳ Buscando <code>${url}</code>…`);
-
-    const resp = await fetch(url);
-    setDataStatus("info", `⏳ Resposta recebida: HTTP ${resp.status}…`);
-
-    if (!resp.ok) throw new Error(`Servidor retornou HTTP ${resp.status}`);
+    const resp = await fetch("data.json?v=" + Date.now());
+    if (!resp.ok) throw new Error(`HTTP ${resp.status} ao buscar data.json`);
 
     const payload = await resp.json();
-    setDataStatus("info", "⏳ Processando eventos…");
 
     if (!payload.events || typeof payload.events !== "object") {
       throw new Error("data.json inválido — campo 'events' não encontrado");
@@ -539,7 +513,6 @@ async function loadFromDataJson() {
     }
 
     rebuildSearchIndex();
-    renderFileChips();
 
     const evCount = Object.keys(allEvents).length;
     const fileSet = new Set();
@@ -547,12 +520,11 @@ async function loadFromDataJson() {
       for (const r of ev.kpi_rows) fileSet.add(r.source_file);
 
     setDataStatus("ok",
-      `✓ <strong>${evCount} eventos</strong> carregados de <strong>${fileSet.size} planilhas</strong> · última atualização: ${(payload.generated || "").replace("T", " ")}`
+      `✓ <strong>${evCount} eventos</strong> prontos para busca · ${fileSet.size} planilhas · atualizado em ${(payload.generated || "").replace("T", " ")}`
     );
   } catch (e) {
     setDataStatus("error",
-      `⚠ Erro ao carregar planilhas: <strong>${e.message}</strong><br>
-       <small>Verifique se o arquivo <code>data.json</code> existe no repositório GitHub.</small>`
+      `⚠ Erro ao carregar dados: <strong>${e.message}</strong>`
     );
   }
 }
