@@ -47,3 +47,6 @@ Desktop.ini
 
 # Allow the data update script
 !update_data.py
+
+# Allow the PPTX template as reference
+!Quarterly*.pptx
