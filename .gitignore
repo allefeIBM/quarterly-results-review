@@ -44,3 +44,6 @@ Desktop.ini
 
 # ── Bob AI workspace metadata ────────────────────────────────────────────────
 .bob/
+
+# Allow the data update script
+!update_data.py
