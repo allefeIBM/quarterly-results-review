@@ -289,19 +289,28 @@
     <div class="sub">Standalone · IBM Field Marketing · 2026</div>
   </div>
   <div class="header-actions">
-    <a class="header-btn" id="box-status-btn" href="#" onclick="boxConnect(); return false;" style="display:none; text-decoration:none;">📁 Conectar ao Box</a>
-    <button class="header-btn" id="box-disconnect-btn" onclick="boxDisconnect()" style="display:none; border-color:#da1e28; color:#da1e28;">✕ Desconectar Box</button>
+    <!-- BOX_DISABLED <a class="header-btn" id="box-status-btn" href="#" onclick="boxConnect(); return false;" style="display:none; text-decoration:none;">📁 Conectar ao Box</a>
+    <button class="header-btn" id="box-disconnect-btn" onclick="boxDisconnect()" style="display:none; border-color:#da1e28; color:#da1e28;">✕ Desconectar Box</button> BOX_DISABLED -->
     <button class="header-btn" onclick="openApiSettings()">⚙ Airtable Settings</button>
   </div>
 </header>
 
 <main>
 
-  <!-- ── Step 1: Conectar ao Box ───────────────────────────────────────────── -->
+  <!-- ── Step 1: Status dos dados ──────────────────────────────────────────── -->
   <div class="card" id="box-card">
-    <h2><span class="step-badge">1</span> Conectar ao Box</h2>
+    <h2><span class="step-badge">1</span> Dados de KPI</h2>
 
-    <!-- Not connected state -->
+    <!-- Loaded from data.json -->
+    <div id="box-connected">
+      <div class="info-box" style="background:#defbe6; border-color:#24a148; margin-bottom:16px;" id="data-status-box">
+        Carregando dados…
+      </div>
+      <div class="upload-grid" id="file-chips"></div>
+    </div>
+
+    <!-- Box integration (disabled — pending IBM admin approval) -->
+    <!-- BOX_DISABLED
     <div id="box-not-connected">
       <div class="info-box" style="margin-bottom:20px;">
         As planilhas de KPI são carregadas automaticamente a partir da pasta do Box.<br>
@@ -312,15 +321,14 @@
         📁 Conectar ao Box
       </a>
     </div>
-
-    <!-- Connected / loading state -->
-    <div id="box-connected" style="display:none;">
+    <div id="box-connected-box" style="display:none;">
       <div class="info-box" style="background:#defbe6; border-color:#24a148; margin-bottom:16px;">
         ✓ Conectado ao Box — planilhas carregadas automaticamente.
       </div>
-      <div class="upload-grid" id="file-chips"></div>
+      <div class="upload-grid" id="file-chips-box"></div>
       <button onclick="boxReload()" style="margin-top:14px;background:none;border:1px solid #8d8d8d;padding:6px 16px;font-size:12px;cursor:pointer;color:#525252;font-family:inherit;">↺ Recarregar planilhas do Box</button>
     </div>
+    BOX_DISABLED -->
   </div>
 
   <!-- ── Step 2: Choose event ──────────────────────────────────────────────── -->
@@ -466,7 +474,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("at-token").value = localStorage.getItem("at_token") || "";
   }
 
-  // 2. Box — check for token in URL hash (OAuth implicit flow redirect)
+  // 2. Load KPI data from data.json (pre-built dictionary)
+  await loadFromDataJson();
+
+  /* BOX_DISABLED — re-enable when IBM admin approves the Box app
   const hash = window.location.hash;
   if (hash.includes("access_token=")) {
     const params = new URLSearchParams(hash.replace(/^#/, ""));
@@ -476,20 +487,43 @@ document.addEventListener("DOMContentLoaded", async () => {
       const expiry = Date.now() + (parseInt(expires) || 3600) * 1000;
       localStorage.setItem("box_token", token);
       localStorage.setItem("box_token_expiry", expiry);
-      // Clean URL so the token doesn't stay in the browser history
       history.replaceState(null, "", window.location.pathname);
     }
   }
-
-  // 3. If we have a valid Box token, load spreadsheets immediately
   const boxToken = getBoxToken();
-  if (boxToken) {
-    updateBoxUI(true);
-    await loadFromBox(boxToken);
-  } else {
-    updateBoxUI(false);
-  }
+  if (boxToken) { updateBoxUI(true); await loadFromBox(boxToken); }
+  else { updateBoxUI(false); }
+  BOX_DISABLED */
 });
+
+// ── Load from pre-built data.json ─────────────────────────────────────────────
+async function loadFromDataJson() {
+  try {
+    const resp = await fetch("data.json");
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const payload = await resp.json();
+
+    // payload.events: { BRIEF_UPPER: { event_name, brief, kpi_rows[] } }
+    for (const [key, ev] of Object.entries(payload.events)) {
+      allEvents[key] = ev;
+    }
+
+    rebuildSearchIndex();
+    renderFileChips();
+
+    const evCount  = Object.keys(allEvents).length;
+    const fileSet  = new Set();
+    for (const ev of Object.values(allEvents))
+      for (const r of ev.kpi_rows) fileSet.add(r.source_file);
+
+    document.getElementById("data-status-box").innerHTML =
+      `✓ <strong>${evCount} eventos</strong> carregados de <strong>${fileSet.size} planilhas</strong> · última atualização: ${(payload.generated || "").replace("T"," ")}`;
+  } catch (e) {
+    document.getElementById("data-status-box").style.background = "#fff1f1";
+    document.getElementById("data-status-box").style.borderColor = "#da1e28";
+    document.getElementById("data-status-box").textContent = "⚠ Erro ao carregar data.json: " + e.message;
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // BOX OAUTH — implicit flow (token in URL hash, no server needed)
