@@ -447,16 +447,16 @@ const BOX_AUTH_URL    = `https://account.box.com/api/oauth2/authorize?response_t
 // BOOT
 // ═══════════════════════════════════════════════════════════════════════════════
 document.addEventListener("DOMContentLoaded", () => {
-  // 1. Airtable modal (first time only)
+  // 1. Always load KPI data first — independent of Airtable config
+  loadFromDataJson();
+
+  // 2. Airtable modal (first time only) — shown after data is already loading
   const alreadyConfigured = localStorage.getItem("at_configured");
   if (!alreadyConfigured) {
     showModal();
   } else {
     document.getElementById("at-token").value = localStorage.getItem("at_token") || "";
   }
-
-  // 2. Load KPI data from data.json — run independently, don't block
-  loadFromDataJson();
 
   /* BOX_DISABLED — re-enable when IBM admin approves the Box app
   const hash = window.location.hash;
@@ -820,36 +820,47 @@ function renderFileChips() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// AIRTABLE — fetch event data (date, expected individuals)
+// AIRTABLE — search events + fetch detail
 // ═══════════════════════════════════════════════════════════════════════════════
 const AT_BRIEF_FIELD    = "🔷EMB #";
+const AT_NAME_FIELD     = "🔷Event Name";
 const AT_EXPECTED_FIELD = "🔹Expected Responses";
 const AT_DATE_FIELD     = "🔷Start Date";
+
+// Search Airtable by name or brief code — returns [{event_name, brief}]
+async function searchAirtable(q) {
+  const token = localStorage.getItem("at_token") || "";
+  if (!token) return [];
+  try {
+    // Search by name OR brief code
+    const filter = encodeURIComponent(
+      `OR(FIND(LOWER("${q}"),LOWER({${AT_NAME_FIELD}})),FIND(LOWER("${q}"),LOWER({${AT_BRIEF_FIELD}})))`
+    );
+    const url = `https://api.airtable.com/v0/${AT_BASE_ID}/${AT_TABLE_ID}?filterByFormula=${filter}&maxRecords=30&fields[]=${encodeURIComponent(AT_NAME_FIELD)}&fields[]=${encodeURIComponent(AT_BRIEF_FIELD)}`;
+    const resp = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return (data.records || []).map(r => ({
+      event_name: r.fields[AT_NAME_FIELD] || "",
+      brief: r.fields[AT_BRIEF_FIELD] || "",
+    })).filter(r => r.brief);
+  } catch (e) {
+    return [];
+  }
+}
 
 async function fetchAirtableForBrief(brief) {
   const key = brief.toUpperCase();
   if (airtableCache[key] !== undefined) return airtableCache[key];
 
   const token = localStorage.getItem("at_token") || "";
-  const base  = AT_BASE_ID;
-  const table = AT_TABLE_ID;
-
-  if (!token) {
-    airtableCache[key] = null;
-    return null;
-  }
+  if (!token) { airtableCache[key] = null; return null; }
 
   try {
-    // Filter by the brief field
     const filterFormula = encodeURIComponent(`{${AT_BRIEF_FIELD}}="${brief}"`);
-    const url = `https://api.airtable.com/v0/${base}/${table}?filterByFormula=${filterFormula}&maxRecords=5`;
-    const resp = await fetch(url, {
-      headers: { "Authorization": `Bearer ${token}` }
-    });
-    if (!resp.ok) {
-      airtableCache[key] = null;
-      return null;
-    }
+    const url = `https://api.airtable.com/v0/${AT_BASE_ID}/${AT_TABLE_ID}?filterByFormula=${filterFormula}&maxRecords=5`;
+    const resp = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
+    if (!resp.ok) { airtableCache[key] = null; return null; }
     const data = await resp.json();
     const record = data.records && data.records[0];
     if (!record) { airtableCache[key] = null; return null; }
@@ -858,6 +869,7 @@ async function fetchAirtableForBrief(brief) {
     const rawDate = fields[AT_DATE_FIELD];
     const eventDate = parseAirtableDate(rawDate);
     const result = {
+      event_name: fields[AT_NAME_FIELD] || "",
       event_date: eventDate ? eventDate.toISOString().split("T")[0] : "",
       expected_individuals: fields[AT_EXPECTED_FIELD] ?? null,
       expected_sqor_bucket: quarterBucket(eventDate),
@@ -900,9 +912,11 @@ function quarterBucket(eventDate) {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SEARCH / DROPDOWN
+// Sources: 1) Airtable (if token set)  2) data.json local index (always)
 // ═══════════════════════════════════════════════════════════════════════════════
-let searchIndex = [];   // [{event_name, brief}]
+let searchIndex = [];   // [{event_name, brief}] — built from data.json
 let focusedIdx  = -1;
+let searchDebounce = null;
 
 function rebuildSearchIndex() {
   const seen = new Set();
@@ -924,22 +938,41 @@ document.addEventListener("click", (e) => {
   if (!e.target.closest(".search-wrap")) closeDropdown();
 });
 
-function onSearch() {
-  const q = searchInput.value.trim().toLowerCase();
-  if (!q) { closeDropdown(); return; }
+async function onSearch() {
+  const q = searchInput.value.trim();
+  if (q.length < 2) { closeDropdown(); return; }
 
-  const matches = searchIndex.filter(ev =>
-    ev.brief.toLowerCase().includes(q) || ev.event_name.toLowerCase().includes(q)
+  // Always show local matches immediately
+  const ql = q.toLowerCase();
+  const localMatches = searchIndex.filter(ev =>
+    ev.brief.toLowerCase().includes(ql) || ev.event_name.toLowerCase().includes(ql)
   ).slice(0, 50);
 
-  renderDropdown(matches, q);
+  renderDropdown(localMatches.length ? localMatches : null, q, true);
+
+  // Then try Airtable in parallel (debounced)
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(async () => {
+    const atMatches = await searchAirtable(q);
+    if (!atMatches.length) {
+      // No Airtable results — show local only (or empty)
+      renderDropdown(localMatches, q, false);
+      return;
+    }
+    // Merge: Airtable results first, then local extras not already in the list
+    const seen = new Set(atMatches.map(r => r.brief.toUpperCase()));
+    const extras = localMatches.filter(r => !seen.has(r.brief.toUpperCase()));
+    renderDropdown([...atMatches, ...extras].slice(0, 50), q, false);
+  }, 350);
 }
 
-function renderDropdown(matches, q) {
+function renderDropdown(matches, q, loading = false) {
   dropdown.innerHTML = "";
   focusedIdx = -1;
-  if (!matches.length) {
-    dropdown.innerHTML = `<div class="dropdown-empty">Nenhum evento para "${escHtml(q)}"</div>`;
+  if (!matches || !matches.length) {
+    dropdown.innerHTML = loading
+      ? `<div class="dropdown-empty">Buscando…</div>`
+      : `<div class="dropdown-empty">Nenhum evento encontrado para "${escHtml(q)}"</div>`;
     dropdown.classList.add("open");
     return;
   }
