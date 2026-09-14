@@ -9,8 +9,8 @@
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <!-- PptxGenJS (generate PPTX client-side) -->
   <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
-  <!-- Tesseract.js v4 — stable CDN paths on unpkg, corePath points to directory with both wasm files -->
-  <script src="https://unpkg.com/tesseract.js@4.1.4/dist/tesseract.min.js"></script>
+  <!-- Tesseract.js v4.1.4 — all assets from jsDelivr (no redirects, CORS *) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.4/dist/tesseract.min.js"></script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1382,18 +1382,19 @@ async function handleOcrFile(file) {
   progressText.textContent = "Baixando modelo OCR (só na 1ª vez, ~10 MB)…";
   document.getElementById("ocr-raw-toggle").style.display  = "none";
 
-  // Tesseract.js v4 — corePath = directory (v4 auto-picks simd vs non-simd)
-  // All assets confirmed HTTP 200 on unpkg
-  const TESS_WORKER = "https://unpkg.com/tesseract.js@4.1.4/dist/worker.min.js";
-  const TESS_CORE   = "https://unpkg.com/tesseract.js-core@4.0.4/";  // directory — v4 needs both wasm files
-  const TESS_LANG   = "https://tessdata.projectnaptha.com/4.0.0";     // no trailing slash
+  // Tesseract.js v4 — all confirmed HTTP 200 on jsDelivr
+  // workerBlobURL:false → spawns Worker(url) directly, avoids importScripts wrapping that
+  // silently fails in some browsers when the blob worker tries to load a cross-origin script
+  const TESS_WORKER = "https://cdn.jsdelivr.net/npm/tesseract.js@4.1.4/dist/worker.min.js";
+  const TESS_CORE   = "https://cdn.jsdelivr.net/npm/tesseract.js-core@4.0.4/";
+  const TESS_LANG   = "https://tessdata.projectnaptha.com/4.0.0";
 
   try {
-    // v4 API: createWorker(options) — no positional lang/oem args
     const worker = await Tesseract.createWorker({
-      workerPath: TESS_WORKER,
-      corePath:   TESS_CORE,
-      langPath:   TESS_LANG,
+      workerPath:    TESS_WORKER,
+      corePath:      TESS_CORE,
+      langPath:      TESS_LANG,
+      workerBlobURL: false,   // spawn Worker(url) directly — no importScripts blob wrapper
       logger: (m) => {
         const pct = Math.round((m.progress || 0) * 100);
         if (m.status === "recognizing text") {
