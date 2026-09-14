@@ -942,26 +942,32 @@ async function onSearch() {
   const q = searchInput.value.trim();
   if (q.length < 2) { closeDropdown(); return; }
 
-  // Always show local matches immediately
-  const ql = q.toLowerCase();
-  const localMatches = searchIndex.filter(ev =>
-    ev.brief.toLowerCase().includes(ql) || ev.event_name.toLowerCase().includes(ql)
-  ).slice(0, 50);
+  // Helper: filter searchIndex with the CURRENT state (called at render time, not closure time)
+  function getLocalMatches(query) {
+    const ql = query.toLowerCase();
+    return searchIndex.filter(ev =>
+      ev.brief.toLowerCase().includes(ql) || ev.event_name.toLowerCase().includes(ql)
+    ).slice(0, 50);
+  }
 
-  renderDropdown(localMatches.length ? localMatches : null, q, true);
+  // Show local matches immediately (re-read searchIndex now)
+  const localNow = getLocalMatches(q);
+  renderDropdown(localNow.length ? localNow : null, q, true);
 
   // Then try Airtable in parallel (debounced)
   clearTimeout(searchDebounce);
   searchDebounce = setTimeout(async () => {
+    // Re-read searchIndex at callback time — it may have loaded since onSearch was called
+    const localFresh = getLocalMatches(q);
     const atMatches = await searchAirtable(q);
     if (!atMatches.length) {
-      // No Airtable results — show local only (or empty)
-      renderDropdown(localMatches, q, false);
+      // No Airtable results — show freshly-filtered local results (never stale)
+      renderDropdown(localFresh.length ? localFresh : null, q, false);
       return;
     }
     // Merge: Airtable results first, then local extras not already in the list
     const seen = new Set(atMatches.map(r => r.brief.toUpperCase()));
-    const extras = localMatches.filter(r => !seen.has(r.brief.toUpperCase()));
+    const extras = localFresh.filter(r => !seen.has(r.brief.toUpperCase()));
     renderDropdown([...atMatches, ...extras].slice(0, 50), q, false);
   }, 350);
 }
