@@ -650,7 +650,7 @@ async function loadFromBox(token) {
     // Token may have expired
     if (e.message.includes("401") || e.message.includes("403")) {
       boxDisconnect();
-      setStatus("error", "⚠ Sessão do Box expirada. Clique em "Conectar ao Box" para autenticar novamente.");
+      setStatus("error", "⚠ Sessão do Box expirada. Clique em 'Conectar ao Box' para autenticar novamente.");
     } else {
       setStatus("error", "⚠ Erro ao carregar planilhas do Box: " + e.message);
     }
