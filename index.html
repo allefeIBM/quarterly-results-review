@@ -1422,16 +1422,20 @@ async function handleOcrFile(file) {
 }
 
 function parseEpmText(text) {
-  // Work on the original text (with newlines) and a collapsed version
-  const t  = text.replace(/\n/g, " ").replace(/\s{2,}/g, " ");  // single line
-  const tN = text;  // keep newlines for line-by-line patterns
+  // Two views of the text:
+  //   t1  = single-line (newlines → space, runs collapsed) — catches "Label: 123" on one line
+  //   lines = original lines array — catches "Label\n123" across two lines
+  const t1    = text.replace(/\r/g, "").replace(/\n/g, " ").replace(/\s{2,}/g, " ");
+  const lines = text.replace(/\r/g, "").split("\n").map(l => l.trim()).filter(Boolean);
 
   let individuals = null;
   let sqor        = null;
   let named       = null;
   let horizon     = null;
 
-  // ── Helper: parse number with optional K/M/B suffix ──────────────────────
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  // Parse a raw numeric string (with optional commas) + K/M/B suffix
   function parseNum(raw, suffix) {
     let v = parseFloat((raw || "").replace(/,/g, ""));
     if (isNaN(v)) return null;
@@ -1442,55 +1446,98 @@ function parseEpmText(text) {
     return Math.round(v);
   }
 
-  // ── Attendees (Actual Individuals) ───────────────────────────────────────
-  // EPM shows: "Attendees" label with number nearby (same line or next token)
-  // Priority: exact "Attendees" label → fallback broader patterns
-  const attPatterns = [
-    /\battendees?\b\s*[:\-]?\s*([\d,]+)/i,
-    /total\s+attendees?\s*[:\-]?\s*([\d,]+)/i,
-    /(?:actual\s+)?individuals?\s*[:\-]?\s*([\d,]+)/i,
-    /\battended\b\s*[:\-]?\s*([\d,]+)/i,
-    /\bregistered\b\s*[:\-]?\s*([\d,]+)/i,
-    /\bparticipants?\b\s*[:\-]?\s*([\d,]+)/i,
-  ];
-  for (const pat of attPatterns) {
-    const m = t.match(pat);
-    if (m) { individuals = parseInt(m[1].replace(/,/g, ""), 10); break; }
+  // Try a list of patterns against the single-line string; return first integer match
+  function matchInt(patterns, src) {
+    for (const pat of patterns) {
+      const m = src.match(pat);
+      if (m) return parseInt(m[1].replace(/,/g, ""), 10);
+    }
+    return null;
   }
 
-  // ── SQO Creation ─────────────────────────────────────────────────────────
-  // EPM shows: "SQO Creation" followed by dollar amount
-  const sqoPatterns = [
+  // Try a list of patterns against the single-line string; return first currency match
+  function matchCurrency(patterns, src) {
+    for (const pat of patterns) {
+      const m = src.match(pat);
+      if (m) return parseNum(m[1], m[2]);
+    }
+    return null;
+  }
+
+  // Look for a label on line[i] matching labelPat, then find the first number
+  // on the same line or the next 1–2 lines
+  function matchNextNumber(labelPat, integerOnly) {
+    for (let i = 0; i < lines.length; i++) {
+      if (!labelPat.test(lines[i])) continue;
+      // Same line first
+      const sameLine = lines[i].match(integerOnly
+        ? /([\d,]{1,12})\s*$/
+        : /\$?\s*([\d,]+(?:\.\d+)?)\s*([kKmMbB]?)\s*$/i);
+      if (sameLine) return integerOnly
+        ? parseInt(sameLine[1].replace(/,/g, ""), 10)
+        : parseNum(sameLine[1], sameLine[2]);
+      // Next 1–2 lines
+      for (let j = i + 1; j <= i + 2 && j < lines.length; j++) {
+        const nextLine = lines[j].match(integerOnly
+          ? /^\$?\s*([\d,]{1,12})\s*$/
+          : /^\$?\s*([\d,]+(?:\.\d+)?)\s*([kKmMbB]?)\s*$/i);
+        if (nextLine) return integerOnly
+          ? parseInt(nextLine[1].replace(/,/g, ""), 10)
+          : parseNum(nextLine[1], nextLine[2]);
+      }
+    }
+    return null;
+  }
+
+  // ── Attendees → Actual Individuals ───────────────────────────────────────
+  // EPM label: "Attendee", "Attendees", "Total Attendees"
+  // Strategy: try inline first, then label-on-one-line / number-on-next-line
+  const attInline = [
+    /\btotal\s+attendees?\s*[:\-]?\s*([\d,]+)/i,     // "Total Attendees: 1,234"
+    /\battendees?\s*[:\-]?\s*([\d,]+)/i,              // "Attendees: 1,234" or "Attendee: 1,234"
+    /\battendee\s*[:\-]?\s*([\d,]+)/i,                // "Attendee 456"
+    /(?:actual\s+)?individuals?\s*[:\-]?\s*([\d,]+)/i,
+    /\battended\b\s*[:\-]?\s*([\d,]+)/i,
+    /\bparticipants?\s*[:\-]?\s*([\d,]+)/i,
+  ];
+  individuals = matchInt(attInline, t1);
+  if (individuals === null) {
+    // label on one line, number on the next
+    individuals = matchNextNumber(/\b(?:total\s+)?attendees?\b/i, true);
+  }
+
+  // ── SQO Creation → Actual SQOR ───────────────────────────────────────────
+  // EPM label: "SQO Creation", "SQO", "SQOR"
+  const sqoInline = [
     /sqo\s*creation\s*[:\-]?\s*\$?\s*([\d,]+(?:\.\d+)?)\s*([kKmMbB]?)/i,
     /sqo(?:r)?\s*[:\-]?\s*\$?\s*([\d,]+(?:\.\d+)?)\s*([kKmMbB]?)/i,
     /pipeline\s*(?:creat(?:ed|ion))?\s*[:\-]?\s*\$?\s*([\d,]+(?:\.\d+)?)\s*([kKmMbB]?)/i,
-    /opportunities?\s+(?:created|generated)?\s*[:\-]?\s*\$?\s*([\d,]+(?:\.\d+)?)\s*([kKmMbB]?)/i,
   ];
-  for (const pat of sqoPatterns) {
-    const m = t.match(pat);
-    if (m) { sqor = parseNum(m[1], m[2]); break; }
+  sqor = matchCurrency(sqoInline, t1);
+  if (sqor === null) {
+    sqor = matchNextNumber(/\bsqo\s*(?:creation|r)?\b/i, false);
   }
 
   // ── Named Accounts ────────────────────────────────────────────────────────
-  // EPM shows: "Named Accounts" or "Named" with a count nearby
-  const namedPatterns = [
+  // EPM label: "Named Accounts", "Named"
+  const namedInline = [
     /named\s+accounts?\s*[:\-]?\s*([\d,]+)/i,
     /\bnamed\b\s*[:\-]?\s*([\d,]+)/i,
   ];
-  for (const pat of namedPatterns) {
-    const m = t.match(pat);
-    if (m) { named = parseInt(m[1].replace(/,/g, ""), 10); break; }
+  named = matchInt(namedInline, t1);
+  if (named === null) {
+    named = matchNextNumber(/\bnamed\b/i, true);
   }
 
   // ── Horizon Accounts ─────────────────────────────────────────────────────
-  // EPM shows: "Horizon" or "Horizon Accounts" with a count nearby
-  const horizonPatterns = [
+  // EPM label: "Horizon Accounts", "Horizon"
+  const horizonInline = [
     /horizon\s+accounts?\s*[:\-]?\s*([\d,]+)/i,
     /\bhorizon\b\s*[:\-]?\s*([\d,]+)/i,
   ];
-  for (const pat of horizonPatterns) {
-    const m = t.match(pat);
-    if (m) { horizon = parseInt(m[1].replace(/,/g, ""), 10); break; }
+  horizon = matchInt(horizonInline, t1);
+  if (horizon === null) {
+    horizon = matchNextNumber(/\bhorizon\b/i, true);
   }
 
   return { individuals, sqor, named, horizon };
