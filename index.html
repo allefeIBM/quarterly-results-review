@@ -1126,47 +1126,61 @@ async function generatePresentation() {
 
 // ── Helper: EMU → inches (PptxGenJS uses inches) ─────────────────────────────
 const emu = v => v / 914400;
+// ── cm → inches ──────────────────────────────────────────────────────────────
+const cm = v => v / 2.54;
 
-// ── Single slide replicating the template layout exactly ─────────────────────
-// Template dimensions: 12192000 × 6858000 EMU = 13.33" × 7.5"
+// ════════════════════════════════════════════════════════════════════════════════
+// buildMainSlide — replicates the template layout exactly
 //
-// Shapes from template (position/size in EMU → converted to inches):
-//  Title          id=3  : x=287963  y=261037  w=4528966  h=394270
-//  EPM area rect  id=2  : x=4041735 y=1199213 w=8013100  h=3343795  (dashed)
-//  KPI area rect  id=4  : x=3926798 y=5411449 w=8128036  h=653470   (dashed)
-//  [Paste EPM]    id=7  : x=6219984 y=2648882 w=3957403  h=329783
-//  [Insert table] id=8  : x=6565691 y=5599847 w=3018019  h=276673
-//  [Date EPM pull]id=13 : x=7123336 y=4731406 w=1912177  h=230647
-//  [Link to POR]  id=17 : x=8553165 y=261037  w=3638835  h=271184
-//  Table 15 (3×1) id=16 : x=0.8cm  y=12.89cm w=9.5cm    h=5.21cm  (left-side big table)
-//  Table 5  (2×1) id=6  : x=0.72cm y=9.4cm   w=3.98cm              (Expected Individuals)
-//  Table 9  (2×1) id=10 : x=6.23cm y=9.36cm  w=3.98cm              (second metric table)
-//  Table 17 (2×3) id=18 : x=0.33cm y=3.33cm  w=9.96cm              (3-col metrics row 1)
-//  Table 19 (2×3) id=20 : x=0.42cm y=6.04cm  w=9.87cm              (3-col metrics row 2)
-
+// Template (13.33" × 7.5" = 12192000 × 6858000 EMU). Positions from outline:
+//
+//  id=3  Title               x=287963   y=261037  w=4528966  h=394270  emu
+//  id=17 [Link to POR]       x=8553165  y=261037  w=3638835  h=271184  emu
+//  id=2  EPM dashed rect     x=4041735  y=1199213 w=8013100  h=3343795 emu
+//  id=7  [Paste EPM]         x=6219984  y=2648882 w=3957403  h=329783  emu
+//  id=13 [Date of EPM pull]  x=7123336  y=4731406 w=1912177  h=230647  emu
+//  id=4  KPI dashed rect     x=3926798  y=5411449 w=8128036  h=653470  emu
+//  id=8  [Insert table KPI]  x=6565691  y=5599847 w=3018019  h=276673  emu
+//  id=18 Table 17 (2×3)  Expected Individuals  x=0.33cm y=3.33cm w=9.96cm
+//  id=20 Table 19 (2×3)  Expected SQOR         x=0.42cm y=6.04cm w=9.87cm
+//  id=6  Table 5  (2×1)  Expected Ind (simple) x=0.72cm y=9.40cm w=3.98cm
+//  id=10 Table 9  (2×1)  SQOR simple           x=6.23cm y=9.36cm w=3.98cm
+//  id=16 Table 15 (3×1)  Event Highlights      x=0.80cm y=12.89cm w=9.5cm h=5.21cm
+// ════════════════════════════════════════════════════════════════════════════════
 function buildMainSlide(pptx, ev) {
   const slide = pptx.addSlide();
   slide.background = { color: "FFFFFF" };
 
   const sqorBucket  = ev.expected_sqor_bucket || "QX";
   const expSqor     = calcExpectedSqor(ev, sqorBucket);
-  const expInd      = ev.expected_individuals != null ? String(ev.expected_individuals) : "—";
+  const expInd      = ev.expected_individuals != null ? String(ev.expected_individuals) : "";
   const datePart    = ev.event_date ? `, ${ev.event_date}` : "";
   const epmPullDate = new Date().toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "2-digit" });
 
-  // ── Title ─────────────────────────────────────────────────────────────────
+  // Shared table style helpers
+  const DARK  = "1F3864";   // IBM dark blue — header bg
+  const MID   = "2E75B6";   // medium blue — sub-header bg
+  const LIGHT = "BDD7EE";   // light blue — border
+  const WHITE = "FFFFFF";
+  const tblFont = { fontFace: "IBM Plex Sans", border: { type: "solid", pt: 0.5, color: LIGHT } };
+
+  const hCell  = (txt, opts={}) => ({ text: txt, options: { bold: true, color: WHITE, fill: DARK, fontSize: 9, valign: "middle", align: "center", ...opts } });
+  const mCell  = (txt, opts={}) => ({ text: txt, options: { bold: true, color: WHITE, fill: MID,  fontSize: 9, valign: "middle", align: "center", ...opts } });
+  const dCell  = (txt, opts={}) => ({ text: String(txt ?? ""), options: { fontSize: 10, valign: "middle", align: "center", ...opts } });
+
+  // ── Title (id=3) ─────────────────────────────────────────────────────────
   slide.addText(`${ev.event_name || "[Event Name]"}, ${ev.brief}${datePart}`, {
     x: emu(287963), y: emu(261037), w: emu(4528966), h: emu(394270),
     fontSize: 14, fontFace: "IBM Plex Sans Light", color: "000000",
   });
 
-  // ── [Link to POR] placeholder ─────────────────────────────────────────────
+  // ── [Link to POR] (id=17) ─────────────────────────────────────────────────
   slide.addText("[Link to POR]", {
     x: emu(8553165), y: emu(261037), w: emu(3638835), h: emu(271184),
     fontSize: 14, fontFace: "IBM Plex Sans Light", color: "000000", align: "center",
   });
 
-  // ── EPM area — dashed rectangle (placeholder for screenshot) ──────────────
+  // ── EPM screenshot area — dashed rect (id=2) ──────────────────────────────
   slide.addShape(pptx.ShapeType.rect, {
     x: emu(4041735), y: emu(1199213), w: emu(8013100), h: emu(3343795),
     fill: { type: "none" },
@@ -1174,40 +1188,39 @@ function buildMainSlide(pptx, ev) {
   });
   slide.addText("[Paste screenshot of EPM dashboard]", {
     x: emu(6219984), y: emu(2648882), w: emu(3957403), h: emu(329783),
-    fontSize: 14, fontFace: "IBM Plex Sans Light", color: "000000",
+    fontSize: 14, fontFace: "IBM Plex Sans Light", color: "525252", align: "center",
   });
 
-  // ── [Date of EPM pull] ────────────────────────────────────────────────────
+  // ── Date of EPM pull (id=13) ─────────────────────────────────────────────
   slide.addText(`Pulled ${epmPullDate}`, {
     x: emu(7123336), y: emu(4731406), w: emu(1912177), h: emu(230647),
     fontSize: 12, fontFace: "IBM Plex Sans Light", color: "000000", italic: true,
   });
 
-  // ── KPI table area — dashed rectangle ────────────────────────────────────
+  // ── KPI projection area — dashed rect (id=4) ─────────────────────────────
   slide.addShape(pptx.ShapeType.rect, {
     x: emu(3926798), y: emu(5411449), w: emu(8128036), h: emu(653470),
     fill: { type: "none" },
     line: { color: "4472C4", width: 1.5, dashType: "dash" },
   });
 
-  // ── [Insert table of KPI projects] ───────────────────────────────────────
+  // ── KPI table (id=8 area) ────────────────────────────────────────────────
   const kpiRows = ev.kpi_rows || [];
   if (kpiRows.length) {
-    // Build KPI table in the dashed area
-    const hdr = [
-      { text: "Event name", options: { bold: true, color: "FFFFFF", fill: "1F3864", fontSize: 9 } },
-      { text: "Brief",      options: { bold: true, color: "FFFFFF", fill: "1F3864", fontSize: 9 } },
-      { text: "UT 15",      options: { bold: true, color: "FFFFFF", fill: "1F3864", fontSize: 9 } },
-      { text: "UT 17",      options: { bold: true, color: "FFFFFF", fill: "1F3864", fontSize: 9 } },
-      { text: "CQ",         options: { bold: true, color: "FFFFFF", fill: "1F3864", fontSize: 9, align: "right" } },
-      { text: "NQ",         options: { bold: true, color: "FFFFFF", fill: "1F3864", fontSize: 9, align: "right" } },
-      { text: "NQ+1",       options: { bold: true, color: "FFFFFF", fill: "1F3864", fontSize: 9, align: "right" } },
-      { text: "NQ+2",       options: { bold: true, color: "FFFFFF", fill: "1F3864", fontSize: 9, align: "right" } },
-      { text: "Total",      options: { bold: true, color: "FFFFFF", fill: "1F3864", fontSize: 9, align: "right" } },
+    const kpiHdr = [
+      { text: "Event name", options: { bold: true, color: WHITE, fill: DARK, fontSize: 8 } },
+      { text: "Brief",      options: { bold: true, color: WHITE, fill: DARK, fontSize: 8 } },
+      { text: "UT 15",      options: { bold: true, color: WHITE, fill: DARK, fontSize: 8 } },
+      { text: "UT 17",      options: { bold: true, color: WHITE, fill: DARK, fontSize: 8 } },
+      { text: "CQ",         options: { bold: true, color: WHITE, fill: DARK, fontSize: 8, align: "right" } },
+      { text: "NQ",         options: { bold: true, color: WHITE, fill: DARK, fontSize: 8, align: "right" } },
+      { text: "NQ+1",       options: { bold: true, color: WHITE, fill: DARK, fontSize: 8, align: "right" } },
+      { text: "NQ+2",       options: { bold: true, color: WHITE, fill: DARK, fontSize: 8, align: "right" } },
+      { text: "Total",      options: { bold: true, color: WHITE, fill: DARK, fontSize: 8, align: "right" } },
     ];
-    const dataRows = kpiRows.map((row, i) => {
+    const kpiData = kpiRows.map((row, i) => {
       const total = row.total != null ? row.total : ((row.cq||0)+(row.nq||0)+(row.nq1||0)+(row.nq2||0));
-      const bg = i % 2 === 0 ? "FFFFFF" : "DCE6F1";
+      const bg = i % 2 === 0 ? WHITE : "DCE6F1";
       return [
         { text: row.event_name || "", options: { fill: bg, fontSize: 8 } },
         { text: row.brief || "",      options: { fill: bg, fontSize: 8 } },
@@ -1217,98 +1230,87 @@ function buildMainSlide(pptx, ev) {
         { text: fmtCur(row.nq),       options: { fill: bg, fontSize: 8, align: "right" } },
         { text: fmtCur(row.nq1),      options: { fill: bg, fontSize: 8, align: "right" } },
         { text: fmtCur(row.nq2),      options: { fill: bg, fontSize: 8, align: "right" } },
-        { text: fmtCur(total),        options: { fill: bg, fontSize: 8, bold: true, align: "right", color: "1F3864" } },
+        { text: fmtCur(total),        options: { fill: bg, fontSize: 8, bold: true, align: "right", color: DARK } },
       ];
     });
-    slide.addTable([hdr, ...dataRows], {
-      x: emu(3926798), y: emu(5411449),
-      w: emu(8128036),
+    slide.addTable([kpiHdr, ...kpiData], {
+      x: emu(3926798), y: emu(5411449), w: emu(8128036),
       colW: [1.9, 0.75, 0.85, 0.85, 0.75, 0.75, 0.75, 0.75, 0.82],
-      border: { type: "solid", pt: 0.5, color: "BDD7EE" },
-      rowH: 0.22,
+      ...tblFont, rowH: 0.22,
     });
   } else {
     slide.addText("[Insert table of KPI projects]", {
       x: emu(6565691), y: emu(5599847), w: emu(3018019), h: emu(276673),
-      fontSize: 14, fontFace: "IBM Plex Sans Light", color: "000000",
+      fontSize: 12, fontFace: "IBM Plex Sans Light", color: "525252",
     });
   }
 
-  // ── Table 17 (2×3): Expected Individuals — x=0.33cm y=3.33cm w=9.96cm ────
-  const indHdr = [
-    { text: "Expected Individuals", options: { bold: true, color: "FFFFFF", fill: "1F3864", colspan: 3, fontSize: 10 } },
-    { text: "", options: { fill: "1F3864" } },
-    { text: "", options: { fill: "1F3864" } },
-  ];
-  const indData = [
-    { text: "Expected",   options: { bold: true, color: "FFFFFF", fill: "2E75B6", fontSize: 9, align: "center" } },
-    { text: "Actual",     options: { bold: true, color: "FFFFFF", fill: "2E75B6", fontSize: 9, align: "center" } },
-    { text: "Delta",      options: { bold: true, color: "FFFFFF", fill: "2E75B6", fontSize: 9, align: "center" } },
-  ];
-  const indVals = [
-    { text: expInd, options: { fontSize: 10, align: "center" } },
-    { text: " ",    options: { fontSize: 10, align: "center" } },
-    { text: " ",    options: { fontSize: 10, align: "center" } },
-  ];
-  slide.addTable([indData, indVals], {
-    x: 0.33/2.54, y: 3.33/2.54, w: 9.96/2.54,
-    colW: [9.96/2.54/3, 9.96/2.54/3, 9.96/2.54/3],
-    fontSize: 10, fontFace: "IBM Plex Sans",
-    border: { type: "solid", pt: 0.5, color: "BDD7EE" },
-    rowH: 0.3,
-  });
-
-  // ── Table 19 (2×3): Expected SQOR — x=0.42cm y=6.04cm w=9.87cm ──────────
-  const sqorHdrLabel = `Expected SQOR end of ${sqorBucket}`;
-  const sqorActLabel = `Actual SQOR as of ${epmPullDate}`;
-  const sqorData = [
-    { text: sqorHdrLabel, options: { bold: true, color: "FFFFFF", fill: "2E75B6", fontSize: 8, align: "center" } },
-    { text: sqorActLabel, options: { bold: true, color: "FFFFFF", fill: "2E75B6", fontSize: 8, align: "center" } },
-    { text: "Delta",      options: { bold: true, color: "FFFFFF", fill: "2E75B6", fontSize: 8, align: "center" } },
-  ];
-  const sqorVals = [
-    { text: expSqor, options: { fontSize: 10, align: "center" } },
-    { text: " ",     options: { fontSize: 10, align: "center" } },
-    { text: " ",     options: { fontSize: 10, align: "center" } },
-  ];
-  slide.addTable([sqorData, sqorVals], {
-    x: 0.42/2.54, y: 6.04/2.54, w: 9.87/2.54,
-    colW: [9.87/2.54/3, 9.87/2.54/3, 9.87/2.54/3],
-    fontSize: 10, fontFace: "IBM Plex Sans",
-    border: { type: "solid", pt: 0.5, color: "BDD7EE" },
-    rowH: 0.3,
-  });
-
-  // ── Table 5 (2×1): small metric top-left — x=0.72cm y=9.4cm w=3.98cm ────
-  // (left metric summary table — template has 3 rows of content)
+  // ── Table 17 (2×3) — Expected Individuals (id=18)
+  //    x=0.33cm  y=3.33cm  w=9.96cm  — 3 equal columns
+  const iW = cm(9.96) / 3;
   slide.addTable([
-    [{ text: " ", options: { fill: "2E75B6", bold: true, color: "FFFFFF", fontSize: 9 } }],
-    [{ text: " ", options: { fontSize: 10 } }],
-    [{ text: " ", options: { fontSize: 10 } }],
+    [ mCell("Expected Individuals"), mCell("Actual Individuals"), mCell("Delta") ],
+    [ dCell(expInd), dCell(""), dCell("") ],
   ], {
-    x: 0.72/2.54, y: 9.4/2.54, w: 3.98/2.54,
-    fontSize: 10, fontFace: "IBM Plex Sans",
-    border: { type: "solid", pt: 0.5, color: "BDD7EE" },
-    rowH: 0.35,
+    x: cm(0.33), y: cm(3.33), w: cm(9.96), colW: [iW, iW, iW],
+    rowH: 0.3, ...tblFont,
   });
 
-  // ── Table 9 (2×1): small metric right — x=6.23cm y=9.36cm w=3.98cm ──────
+  // ── Table 19 (2×3) — Expected SQOR (id=20)
+  //    x=0.42cm  y=6.04cm  w=9.87cm  — 3 equal columns
+  const sW = cm(9.87) / 3;
   slide.addTable([
-    [{ text: " ", options: { fill: "2E75B6", bold: true, color: "FFFFFF", fontSize: 9 } }],
-    [{ text: " ", options: { fontSize: 10 } }],
+    [ mCell(`Expected SQOR by end of ${sqorBucket}`), mCell(`Actual SQOR as of ${epmPullDate}`), mCell("Delta (+/-)") ],
+    [ dCell(expSqor), dCell(""), dCell("") ],
   ], {
-    x: 6.23/2.54, y: 9.36/2.54, w: 3.98/2.54,
-    fontSize: 10, fontFace: "IBM Plex Sans",
-    border: { type: "solid", pt: 0.5, color: "BDD7EE" },
-    rowH: 0.35,
+    x: cm(0.42), y: cm(6.04), w: cm(9.87), colW: [sW, sW, sW],
+    rowH: 0.3, ...tblFont,
+  });
+
+  // ── Table 5 (2×1) — % Named Accounts (id=6)
+  //    x=0.72cm  y=9.40cm  w=3.98cm
+  slide.addTable([
+    [ mCell("% Named Accounts\n(# of Named/Total Attendees)", { fontSize: 8 }) ],
+    [ dCell("X%", { fontSize: 14, bold: true }) ],
+  ], {
+    x: cm(0.72), y: cm(9.40), w: cm(3.98),
+    rowH: [0.5, 0.5], ...tblFont,
+  });
+
+  // ── Table 9 (2×1) — % Horizon Accounts (id=10)
+  //    x=6.23cm  y=9.36cm  w=3.98cm
+  slide.addTable([
+    [ mCell("% Horizon Accounts\n(# of Horizon/Total Attendees)", { fontSize: 8 }) ],
+    [ dCell("X%", { fontSize: 14, bold: true }) ],
+  ], {
+    x: cm(6.23), y: cm(9.36), w: cm(3.98),
+    rowH: [0.5, 0.5], ...tblFont,
+  });
+
+  // ── Table 15 (3×1) — Event Highlights / Future Recommendations (id=16)
+  //    x=0.80cm  y=12.89cm  w=9.5cm  h=5.21cm
+  slide.addTable([
+    [ hCell("Event Highlights / Future Recommendations", { fontSize: 10 }) ],
+    [ dCell(
+        "# of meetings onsite / how did they perform\n" +
+        "Any large deals made/progressed\n" +
+        "Cool activation or creative idea implemented\n" +
+        "If we didn't meet projections, why not?",
+        { align: "left", fontSize: 9, valign: "top" }
+      )
+    ],
+    [ mCell("[Keep, Change, or Remove From Plan]", { fontSize: 9 }) ],
+  ], {
+    x: cm(0.80), y: cm(12.89), w: cm(9.5),
+    rowH: [0.4, 2.6, 0.4], ...tblFont,
   });
 }
 
 function calcExpectedSqor(ev, bucket) {
   const key = { CQ: "cq", NQ: "nq", "NQ+1": "nq1", "NQ+2": "nq2" }[bucket];
-  if (!key) return "—";
+  if (!key) return "";
   const total = (ev.kpi_rows || []).reduce((s, r) => s + (r[key] || 0), 0);
-  return total ? fmtCur(total) : "—";
+  return total ? fmtCur(total) : "";
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
