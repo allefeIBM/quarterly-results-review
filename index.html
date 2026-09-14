@@ -499,7 +499,7 @@ function setDataStatus(type, html) {
 
 async function loadFromDataJson() {
   try {
-    const resp = await fetch("data.json?v=" + Date.now());
+    const resp = await fetch("data.json");
     if (!resp.ok) throw new Error(`HTTP ${resp.status} ao buscar data.json`);
 
     const payload = await resp.json();
@@ -513,6 +513,13 @@ async function loadFromDataJson() {
     }
 
     rebuildSearchIndex();
+
+    // If the user already typed something while data was loading, re-render now
+    const currentQuery = searchInput.value.trim();
+    if (currentQuery.length >= 2) {
+      const matches = getLocalMatches(currentQuery);
+      if (matches.length) renderDropdown(matches, currentQuery, false);
+    }
 
     const evCount = Object.keys(allEvents).length;
     const fileSet = new Set();
@@ -928,6 +935,7 @@ function rebuildSearchIndex() {
     searchIndex.push({ event_name: ev.event_name, brief: ev.brief });
   }
   searchIndex.sort((a, b) => a.event_name.localeCompare(b.event_name));
+  // Note: after rebuild, loadFromDataJson() re-renders any active query
 }
 
 const searchInput = document.getElementById("event-search");
