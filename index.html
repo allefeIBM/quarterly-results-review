@@ -9,8 +9,8 @@
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <!-- PptxGenJS (generate PPTX client-side) -->
   <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
-  <!-- Tesseract.js (OCR client-side via WebAssembly) -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <!-- Tesseract.js (OCR client-side via WebAssembly) — pin to exact version for stability -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -595,6 +595,7 @@
 let allEvents   = {};   // { BRIEF_UPPER: { event_name, brief, kpi_rows[], ...airtable } }
 let selectedEvent = null;
 let airtableCache = {}; // brief_upper → airtable fields
+let dataReady = false;  // true once data.json has been parsed and searchIndex built
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -679,12 +680,14 @@ async function loadFromDataJson() {
     }
 
     rebuildSearchIndex();
+    dataReady = true;
 
-    // If the user already typed something while data was loading, re-render now
+    // Always re-render if the user already typed something while data was loading
     const currentQuery = searchInput.value.trim();
     if (currentQuery.length >= 2) {
       const matches = getLocalMatches(currentQuery);
-      if (matches.length) renderDropdown(matches, currentQuery, false);
+      // Show results or "not found" — either way, replace the loading spinner
+      renderDropdown(matches.length ? matches : null, currentQuery, false);
     }
 
     const evCount = Object.keys(allEvents).length;
@@ -696,9 +699,16 @@ async function loadFromDataJson() {
       `✓ <strong>${evCount} eventos</strong> prontos para busca · ${fileSet.size} planilhas · atualizado em ${(payload.generated || "").replace("T", " ")}`
     );
   } catch (e) {
+    dataReady = true; // unblock the search even on error (will show "no results")
     setDataStatus("error",
-      `⚠ Erro ao carregar dados: <strong>${e.message}</strong>`
+      `⚠ Erro ao carregar dados: <strong>${e.message}</strong>. Recarregue a página.`
     );
+    // If user already typed, update the dropdown to show the error
+    const currentQuery = searchInput.value.trim();
+    if (currentQuery.length >= 2) {
+      dropdown.innerHTML = `<div class="dropdown-empty">⚠ Falha ao carregar dados. Recarregue a página.</div>`;
+      dropdown.classList.add("open");
+    }
   }
 }
 
@@ -1127,6 +1137,13 @@ function onSearch() {
   // Increment generation — any in-flight async callbacks from older generations are discarded
   const gen = ++searchGeneration;
 
+  // While data.json is still loading, show a spinner and wait
+  if (!dataReady) {
+    dropdown.innerHTML = `<div class="dropdown-empty">⏳ Carregando lista de eventos… aguarde um momento.</div>`;
+    dropdown.classList.add("open");
+    return;
+  }
+
   // Show local matches immediately (synchronous — always up to date)
   const localNow = getLocalMatches(q);
   renderDropdown(localNow.length ? localNow : null, q, false);
@@ -1365,29 +1382,29 @@ async function handleOcrFile(file) {
   progressText.textContent = "Baixando modelo OCR (só na 1ª vez, ~10 MB)…";
   document.getElementById("ocr-raw-toggle").style.display  = "none";
 
-  // Label map: Tesseract status → Portuguese message
-  const statusLabel = {
-    "loading tesseract core":   "Carregando motor OCR…",
-    "initializing tesseract":   "Inicializando motor…",
-    "loading language traineddata": "Baixando modelo de idioma (~10 MB, só na 1ª vez)…",
-    "initializing api":         "Preparando API…",
-    "recognizing text":         null,  // handled separately with %
-  };
+  // CDN base — all Tesseract assets must come from the same pinned version
+  const TESS_CDN = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/";
+  const TESS_LANG = "https://cdn.jsdelivr.net/npm/tesseract.js-data@4.0.0/eng.traineddata.gz";
 
   try {
     const worker = await Tesseract.createWorker("eng", 1, {
+      workerPath:   TESS_CDN + "worker.min.js",
+      corePath:     TESS_CDN + "tesseract-core-simd-lstm.wasm.js",
+      langPath:     "https://cdn.jsdelivr.net/npm/tesseract.js-data@4.0.0/",
       logger: (m) => {
         const pct = Math.round((m.progress || 0) * 100);
         if (m.status === "recognizing text") {
           progressText.textContent = `Lendo imagem… ${pct}%`;
         } else if (m.status === "loading language traineddata") {
           progressText.textContent = pct < 100
-            ? `Baixando modelo de idioma… ${pct}% (só na 1ª vez)`
+            ? `Baixando modelo… ${pct}% (só na 1ª vez)`
             : "Modelo carregado ✓";
-        } else if (m.status in statusLabel) {
-          progressText.textContent = statusLabel[m.status] || m.status;
-        } else if (m.status) {
-          progressText.textContent = m.status;
+        } else if (m.status === "loading tesseract core") {
+          progressText.textContent = "Carregando motor OCR…";
+        } else if (m.status === "initializing tesseract") {
+          progressText.textContent = "Inicializando…";
+        } else if (m.status === "initializing api") {
+          progressText.textContent = "Preparando…";
         }
       },
     });
