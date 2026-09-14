@@ -340,6 +340,45 @@
         </div>
         <button class="clear-btn" id="clear-event" title="Limpar seleção">✕</button>
       </div>
+
+      <!-- ── Metrics fields shown after event selection ─────────────────── -->
+      <div id="event-metrics" style="margin-top:16px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+
+        <div>
+          <label style="display:block;font-size:11px;font-weight:600;color:#525252;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">
+            Nome do Evento (Airtable)
+          </label>
+          <div id="at-event-name" style="padding:10px 12px;border:1px solid #e0e0e0;background:#f4f4f4;font-size:13px;color:#161616;min-height:38px;">—</div>
+        </div>
+
+        <div>
+          <label for="input-expected-ind" style="display:block;font-size:11px;font-weight:600;color:#525252;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">
+            Expected Individuals
+            <span style="font-weight:400;text-transform:none;letter-spacing:normal;color:#8d8d8d;font-size:10px;">(do Airtable)</span>
+          </label>
+          <input type="number" id="input-expected-ind" min="0" step="1"
+            style="width:100%;padding:10px 12px;border:1px solid #8d8d8d;font-size:13px;font-family:inherit;outline:none;"
+            placeholder="—" oninput="updateDelta()"/>
+        </div>
+
+        <div>
+          <label for="input-actual-ind" style="display:block;font-size:11px;font-weight:600;color:#525252;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">
+            Actual Individuals
+            <span style="font-weight:400;text-transform:none;letter-spacing:normal;color:#8d8d8d;font-size:10px;">(preencher após o evento)</span>
+          </label>
+          <input type="number" id="input-actual-ind" min="0" step="1"
+            style="width:100%;padding:10px 12px;border:1px solid #8d8d8d;font-size:13px;font-family:inherit;outline:none;"
+            placeholder="—" oninput="updateDelta()"/>
+        </div>
+
+        <div>
+          <label style="display:block;font-size:11px;font-weight:600;color:#525252;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">
+            Delta (Actual − Expected)
+          </label>
+          <div id="ind-delta" style="padding:10px 12px;border:1px solid #e0e0e0;background:#f4f4f4;font-size:13px;font-weight:600;color:#161616;min-height:38px;">—</div>
+        </div>
+
+      </div>
     </div>
 
     <div id="kpi-preview">
@@ -1058,6 +1097,13 @@ function renderSelectedEvent(ev) {
     `Brief: ${ev.brief}  ·  ${rows.length} KPI row(s) · ${sources.length} arquivo(s)${atInfo}`;
   document.getElementById("selected-event-info").style.display = "block";
 
+  // Airtable fields
+  document.getElementById("at-event-name").textContent = ev.event_name || "—";
+  const expInd = ev.expected_individuals != null ? String(ev.expected_individuals) : "";
+  document.getElementById("input-expected-ind").value = expInd;
+  document.getElementById("input-actual-ind").value = "";
+  updateDelta();
+
   const tbody = document.getElementById("kpi-tbody");
   tbody.innerHTML = "";
   rows.forEach(row => {
@@ -1080,11 +1126,30 @@ function renderSelectedEvent(ev) {
   updateGenerateBtn();
 }
 
+function updateDelta() {
+  const exp = parseFloat(document.getElementById("input-expected-ind").value);
+  const act = parseFloat(document.getElementById("input-actual-ind").value);
+  const el  = document.getElementById("ind-delta");
+  if (!isNaN(exp) && !isNaN(act)) {
+    const delta = act - exp;
+    el.textContent = (delta >= 0 ? "+" : "") + delta.toLocaleString("en-US");
+    el.style.color = delta >= 0 ? "#24a148" : "#da1e28";
+  } else {
+    el.textContent = "—";
+    el.style.color = "#161616";
+  }
+}
+
 document.getElementById("clear-event").addEventListener("click", () => {
   selectedEvent = null;
   searchInput.value = "";
   document.getElementById("selected-event-info").style.display = "none";
   document.getElementById("kpi-preview").style.display = "none";
+  document.getElementById("at-event-name").textContent = "—";
+  document.getElementById("input-expected-ind").value = "";
+  document.getElementById("input-actual-ind").value = "";
+  document.getElementById("ind-delta").textContent = "—";
+  document.getElementById("ind-delta").style.color = "#161616";
   updateGenerateBtn();
 });
 
@@ -1153,9 +1218,17 @@ function buildMainSlide(pptx, ev) {
 
   const sqorBucket  = ev.expected_sqor_bucket || "QX";
   const expSqor     = calcExpectedSqor(ev, sqorBucket);
-  const expInd      = ev.expected_individuals != null ? String(ev.expected_individuals) : "";
   const datePart    = ev.event_date ? `, ${ev.event_date}` : "";
   const epmPullDate = new Date().toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "2-digit" });
+
+  // Read live values from the UI fields (user may have edited them)
+  const expIndRaw = parseFloat(document.getElementById("input-expected-ind").value);
+  const actIndRaw = parseFloat(document.getElementById("input-actual-ind").value);
+  const expInd    = !isNaN(expIndRaw) ? expIndRaw.toLocaleString("en-US") : "";
+  const actInd    = !isNaN(actIndRaw) ? actIndRaw.toLocaleString("en-US") : "";
+  const deltaInd  = (!isNaN(expIndRaw) && !isNaN(actIndRaw))
+    ? ((actIndRaw - expIndRaw >= 0 ? "+" : "") + (actIndRaw - expIndRaw).toLocaleString("en-US"))
+    : "";
 
   // Shared table style helpers
   const DARK  = "1F3864";   // IBM dark blue — header bg
@@ -1250,7 +1323,7 @@ function buildMainSlide(pptx, ev) {
   const iW = cm(9.96) / 3;
   slide.addTable([
     [ mCell("Expected Individuals"), mCell("Actual Individuals"), mCell("Delta") ],
-    [ dCell(expInd), dCell(""), dCell("") ],
+    [ dCell(expInd), dCell(actInd), dCell(deltaInd) ],
   ], {
     x: cm(0.33), y: cm(3.33), w: cm(9.96), colW: [iW, iW, iW],
     rowH: 0.3, ...tblFont,
