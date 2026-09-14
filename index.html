@@ -443,61 +443,69 @@
       </div>
     </div>
 
-    <!-- ── Step 1b: EPM Screenshot OCR ────────────────────────────────────── -->
+    <!-- ── Step 1b: EPM Screenshot + Resultados do evento ─────────────────── -->
     <div class="ocr-section" id="ocr-section" style="display:none;">
       <h3>
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0">
           <rect x="1" y="1" width="14" height="14" rx="1" stroke="#0f62fe" stroke-width="1.5" fill="none"/>
           <path d="M4 6h8M4 8h5M4 10h6" stroke="#0f62fe" stroke-width="1.2" stroke-linecap="round"/>
         </svg>
-        Screenshot do EPM — Extração automática de dados (OCR)
+        Resultados do evento — preencha manualmente ou carregue o screenshot do EPM
       </h3>
 
-      <div class="ocr-drop" id="ocr-drop">
-        <input type="file" id="ocr-file-input" accept="image/*" onchange="handleOcrFile(this.files[0])"/>
-        <div class="dz-icon">🖼</div>
-        <div class="dz-text">Clique ou arraste o screenshot do EPM aqui</div>
-        <div class="dz-hint">PNG, JPG, BMP, TIFF — o OCR extrai os dados automaticamente</div>
-      </div>
-
-      <img id="ocr-preview-img" alt="Preview do screenshot" />
-
-      <div class="ocr-progress" id="ocr-progress">
-        <div class="mini-spinner"></div>
-        <span id="ocr-progress-text">Iniciando OCR…</span>
-      </div>
-
-      <div class="ocr-result-grid" id="ocr-result-grid" style="display:none; grid-template-columns:1fr 1fr;">
+      <!-- Campos sempre visíveis — editáveis a qualquer momento -->
+      <div class="ocr-result-grid" style="display:grid; grid-template-columns:1fr 1fr; margin-bottom:16px;">
         <div class="ocr-field">
-          <label>Attendees (Actual Individuals) <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(extraído)</span></label>
-          <input type="number" id="ocr-actual-ind" min="0" step="1" placeholder="—" oninput="syncOcrToFields()"/>
+          <label>Attendees <span style="font-weight:400;color:#8d8d8d;font-size:10px;">→ Actual Individuals no slide</span></label>
+          <input type="number" id="ocr-actual-ind" min="0" step="1" placeholder="Digite ou carregue a imagem…" oninput="syncOcrToFields()"/>
         </div>
         <div class="ocr-field">
-          <label>SQO Creation (Actual SQOR) <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(extraído)</span></label>
-          <input type="number" id="ocr-actual-sqor" min="0" step="1" placeholder="—" oninput="syncOcrToFields()"/>
+          <label>SQO Creation <span style="font-weight:400;color:#8d8d8d;font-size:10px;">→ Actual SQOR no slide</span></label>
+          <input type="number" id="ocr-actual-sqor" min="0" step="1" placeholder="Digite ou carregue a imagem…" oninput="syncOcrToFields()"/>
         </div>
         <div class="ocr-field">
-          <label>Named Accounts <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(extraído — nº de pessoas)</span></label>
-          <input type="number" id="ocr-named" min="0" step="1" placeholder="—" oninput="syncOcrToFields()"/>
+          <label>Named Accounts <span style="font-weight:400;color:#8d8d8d;font-size:10px;">→ % Named no slide</span></label>
+          <input type="number" id="ocr-named" min="0" step="1" placeholder="Digite ou carregue a imagem…" oninput="syncOcrToFields()"/>
         </div>
         <div class="ocr-field">
-          <label>Horizon Accounts <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(extraído — nº de pessoas)</span></label>
-          <input type="number" id="ocr-horizon" min="0" step="1" placeholder="—" oninput="syncOcrToFields()"/>
+          <label>Horizon Accounts <span style="font-weight:400;color:#8d8d8d;font-size:10px;">→ % Horizon no slide</span></label>
+          <input type="number" id="ocr-horizon" min="0" step="1" placeholder="Digite ou carregue a imagem…" oninput="syncOcrToFields()"/>
         </div>
-        <div class="ocr-field" style="grid-column:1/3;">
-          <label>% Named Accounts calculado <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(Named ÷ Attendees)</span></label>
-          <div id="ocr-named-pct" style="padding:9px 12px;border:1px solid #e0e0e0;background:#f4f4f4;font-size:13px;font-weight:600;">—</div>
-        </div>
-        <div class="ocr-field" style="grid-column:1/3;">
-          <label>% Horizon Accounts calculado <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(Horizon ÷ Attendees)</span></label>
-          <div id="ocr-horizon-pct" style="padding:9px 12px;border:1px solid #e0e0e0;background:#f4f4f4;font-size:13px;font-weight:600;">—</div>
+        <div class="ocr-field" style="grid-column:1/3; display:flex; gap:12px;">
+          <div style="flex:1;">
+            <label>% Named Accounts <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(Named ÷ Attendees — calculado)</span></label>
+            <div id="ocr-named-pct" style="padding:9px 12px;border:1px solid #e0e0e0;background:#f4f4f4;font-size:13px;font-weight:600;color:#0f62fe;">—</div>
+          </div>
+          <div style="flex:1;">
+            <label>% Horizon Accounts <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(Horizon ÷ Attendees — calculado)</span></label>
+            <div id="ocr-horizon-pct" style="padding:9px 12px;border:1px solid #e0e0e0;background:#f4f4f4;font-size:13px;font-weight:600;color:#0f62fe;">—</div>
+          </div>
         </div>
       </div>
 
-      <div class="ocr-raw" id="ocr-raw-toggle" onclick="toggleOcrRaw()">
-        Ver texto bruto extraído pelo OCR
-      </div>
-      <pre id="ocr-raw-text"></pre>
+      <!-- Upload opcional para preencher automaticamente via OCR -->
+      <details style="margin-bottom:8px;">
+        <summary style="font-size:12px;font-weight:600;color:#525252;cursor:pointer;user-select:none;padding:8px 0;">
+          📷 Preencher automaticamente via screenshot do EPM (OCR)
+        </summary>
+        <div style="margin-top:10px;">
+          <div class="ocr-drop" id="ocr-drop">
+            <input type="file" id="ocr-file-input" accept="image/*" onchange="handleOcrFile(this.files[0])"/>
+            <div class="dz-icon">🖼</div>
+            <div class="dz-text">Clique ou arraste o screenshot do EPM aqui</div>
+            <div class="dz-hint">PNG, JPG, BMP, TIFF — os campos acima serão preenchidos automaticamente</div>
+          </div>
+          <img id="ocr-preview-img" alt="Preview do screenshot" />
+          <div class="ocr-progress" id="ocr-progress">
+            <div class="mini-spinner"></div>
+            <span id="ocr-progress-text">Iniciando OCR…</span>
+          </div>
+          <div class="ocr-raw" id="ocr-raw-toggle" onclick="toggleOcrRaw()">
+            Ver texto bruto extraído pelo OCR
+          </div>
+          <pre id="ocr-raw-text"></pre>
+        </div>
+      </details>
     </div>
 
     <div id="kpi-preview">
@@ -1291,29 +1299,26 @@ ocrDrop.addEventListener("drop", (e) => {
 });
 
 function resetOcr() {
-  document.getElementById("ocr-file-input").value = "";
-  document.getElementById("ocr-preview-img").style.display = "none";
-  document.getElementById("ocr-preview-img").src = "";
-  document.getElementById("ocr-progress").classList.remove("visible");
-  document.getElementById("ocr-result-grid").style.display = "none";
+  // Clear all result fields
   ["ocr-actual-ind","ocr-actual-sqor","ocr-named","ocr-horizon"].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.value = ""; el.classList.remove("auto-filled"); }
   });
   document.getElementById("ocr-named-pct").textContent   = "—";
   document.getElementById("ocr-horizon-pct").textContent = "—";
-  document.getElementById("ocr-raw-toggle").style.display = "none";
-  document.getElementById("ocr-raw-text").style.display = "none";
-  document.getElementById("ocr-raw-text").textContent = "";
-  ocrDrop.classList.remove("has-image");
-  if (!ocrDrop.querySelector(".dz-text")) {
-    ocrDrop.innerHTML = `
-      <input type="file" id="ocr-file-input" accept="image/*" onchange="handleOcrFile(this.files[0])"/>
-      <div class="dz-icon">🖼</div>
-      <div class="dz-text">Clique ou arraste o screenshot do EPM aqui</div>
-      <div class="dz-hint">PNG, JPG, BMP, TIFF — o OCR extrai os dados automaticamente</div>
-    `;
-  }
+
+  // Reset OCR upload area
+  const fileInput = document.getElementById("ocr-file-input");
+  if (fileInput) fileInput.value = "";
+  const previewImg = document.getElementById("ocr-preview-img");
+  if (previewImg) { previewImg.style.display = "none"; previewImg.src = ""; }
+  const progressEl = document.getElementById("ocr-progress");
+  if (progressEl) progressEl.classList.remove("visible");
+  const rawToggle = document.getElementById("ocr-raw-toggle");
+  if (rawToggle) rawToggle.style.display = "none";
+  const rawText = document.getElementById("ocr-raw-text");
+  if (rawText) { rawText.style.display = "none"; rawText.textContent = ""; }
+  if (ocrDrop) ocrDrop.classList.remove("has-image");
 }
 
 function toggleOcrRaw() {
@@ -1396,7 +1401,6 @@ async function handleOcrFile(file) {
     // Trigger percentage calculation + delta
     syncOcrToFields();
 
-    document.getElementById("ocr-result-grid").style.display = "grid";
     progressEl.classList.remove("visible");
 
     const found = [
