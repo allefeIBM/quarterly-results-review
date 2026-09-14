@@ -9,8 +9,8 @@
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <!-- PptxGenJS (generate PPTX client-side) -->
   <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
-  <!-- Tesseract.js (OCR client-side via WebAssembly) — pin to exact version for stability -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+  <!-- Tesseract.js v4 — stable CDN paths on unpkg, corePath points to directory with both wasm files -->
+  <script src="https://unpkg.com/tesseract.js@4.1.4/dist/tesseract.min.js"></script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1382,15 +1382,18 @@ async function handleOcrFile(file) {
   progressText.textContent = "Baixando modelo OCR (só na 1ª vez, ~10 MB)…";
   document.getElementById("ocr-raw-toggle").style.display  = "none";
 
-  // CDN base — all Tesseract assets must come from the same pinned version
-  const TESS_CDN = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/";
-  const TESS_LANG = "https://cdn.jsdelivr.net/npm/tesseract.js-data@4.0.0/eng.traineddata.gz";
+  // Tesseract.js v4 — corePath = directory (v4 auto-picks simd vs non-simd)
+  // All assets confirmed HTTP 200 on unpkg
+  const TESS_WORKER = "https://unpkg.com/tesseract.js@4.1.4/dist/worker.min.js";
+  const TESS_CORE   = "https://unpkg.com/tesseract.js-core@4.0.4/";  // directory — v4 needs both wasm files
+  const TESS_LANG   = "https://tessdata.projectnaptha.com/4.0.0";     // no trailing slash
 
   try {
-    const worker = await Tesseract.createWorker("eng", 1, {
-      workerPath:   TESS_CDN + "worker.min.js",
-      corePath:     TESS_CDN + "tesseract-core-simd-lstm.wasm.js",
-      langPath:     "https://cdn.jsdelivr.net/npm/tesseract.js-data@4.0.0/",
+    // v4 API: createWorker(options) — no positional lang/oem args
+    const worker = await Tesseract.createWorker({
+      workerPath: TESS_WORKER,
+      corePath:   TESS_CORE,
+      langPath:   TESS_LANG,
       logger: (m) => {
         const pct = Math.round((m.progress || 0) * 100);
         if (m.status === "recognizing text") {
@@ -1409,6 +1412,11 @@ async function handleOcrFile(file) {
       },
     });
 
+    // v4 requires explicit loadLanguage + initialize before recognize
+    progressText.textContent = "Carregando idioma…";
+    await worker.loadLanguage("eng");
+    progressText.textContent = "Inicializando motor…";
+    await worker.initialize("eng");
     progressText.textContent = "Processando imagem…";
     const result = await worker.recognize(file);
     await worker.terminate();
@@ -1449,7 +1457,10 @@ async function handleOcrFile(file) {
     progressEl.classList.add("visible");
 
   } catch (err) {
-    progressText.textContent = "⚠ Erro no OCR: " + err.message;
+    // err may be a plain string or non-Error object from Tesseract internals
+    const msg = (err && err.message) ? err.message : String(err);
+    progressText.textContent = "⚠ Erro no OCR: " + msg;
+    progressEl.classList.add("visible");
     console.error("OCR error:", err);
   }
 }
