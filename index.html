@@ -9,6 +9,8 @@
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <!-- PptxGenJS (generate PPTX client-side) -->
   <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+  <!-- Tesseract.js (OCR client-side via WebAssembly) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -266,6 +268,66 @@
       background: #e8f0fd; border-left: 4px solid #0f62fe;
       padding: 12px 16px; font-size: 13px; color: #161616; margin-bottom: 20px;
     }
+
+    /* ── OCR upload zone ─────────────────────────────────────── */
+    .ocr-section { margin-top: 24px; border-top: 1px solid #e0e0e0; padding-top: 20px; }
+    .ocr-section h3 {
+      font-size: 13px; font-weight: 600; color: #161616;
+      margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+    }
+    .ocr-drop {
+      border: 2px dashed #8d8d8d; padding: 0;
+      text-align: center; cursor: pointer;
+      transition: border-color .15s, background .15s;
+      position: relative; background: #fafafa;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; min-height: 110px;
+    }
+    .ocr-drop:hover, .ocr-drop.dragover { border-color: #0f62fe; background: #e8f0fd; }
+    .ocr-drop input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+    .ocr-drop .dz-icon { font-size: 24px; margin-bottom: 6px; color: #8d8d8d; }
+    .ocr-drop .dz-text { font-size: 13px; color: #525252; }
+    .ocr-drop .dz-hint { font-size: 11px; color: #8d8d8d; margin-top: 3px; }
+    .ocr-drop.has-image { border-color: #24a148; background: #f0faf2; padding: 0; }
+
+    #ocr-preview-img {
+      max-width: 100%; max-height: 220px; object-fit: contain;
+      display: none; border: 1px solid #e0e0e0; margin-top: 10px;
+    }
+    .ocr-progress {
+      margin-top: 10px; font-size: 12px; color: #525252;
+      display: none; align-items: center; gap: 8px;
+    }
+    .ocr-progress.visible { display: flex; }
+    .ocr-progress .mini-spinner {
+      width: 14px; height: 14px; border: 2px solid #0f62fe33;
+      border-top-color: #0f62fe; border-radius: 50%;
+      animation: spin .7s linear infinite; flex-shrink: 0;
+    }
+    .ocr-result-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px;
+    }
+    .ocr-field label {
+      display: block; font-size: 11px; font-weight: 600; color: #525252;
+      text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px;
+    }
+    .ocr-field input {
+      width: 100%; padding: 9px 12px; border: 1px solid #8d8d8d;
+      font-size: 13px; font-family: inherit; outline: none;
+      transition: border-color .15s;
+    }
+    .ocr-field input:focus { border-color: #0f62fe; }
+    .ocr-field input.auto-filled { border-color: #24a148; background: #f0faf2; }
+    .ocr-raw {
+      margin-top: 10px; font-size: 11px; color: #8d8d8d;
+      cursor: pointer; text-decoration: underline; display: none;
+    }
+    #ocr-raw-text {
+      display: none; margin-top: 6px; padding: 8px; background: #f4f4f4;
+      border: 1px solid #e0e0e0; font-size: 10px; font-family: monospace;
+      white-space: pre-wrap; max-height: 100px; overflow-y: auto;
+      color: #525252;
+    }
   </style>
 </head>
 <body>
@@ -379,6 +441,49 @@
         </div>
 
       </div>
+    </div>
+
+    <!-- ── Step 1b: EPM Screenshot OCR ────────────────────────────────────── -->
+    <div class="ocr-section" id="ocr-section" style="display:none;">
+      <h3>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0">
+          <rect x="1" y="1" width="14" height="14" rx="1" stroke="#0f62fe" stroke-width="1.5" fill="none"/>
+          <path d="M4 6h8M4 8h5M4 10h6" stroke="#0f62fe" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+        Screenshot do EPM — Extração automática de dados (OCR)
+      </h3>
+
+      <div class="ocr-drop" id="ocr-drop">
+        <input type="file" id="ocr-file-input" accept="image/*" onchange="handleOcrFile(this.files[0])"/>
+        <div class="dz-icon">🖼</div>
+        <div class="dz-text">Clique ou arraste o screenshot do EPM aqui</div>
+        <div class="dz-hint">PNG, JPG, BMP, TIFF — o OCR extrai os dados automaticamente</div>
+      </div>
+
+      <img id="ocr-preview-img" alt="Preview do screenshot" />
+
+      <div class="ocr-progress" id="ocr-progress">
+        <div class="mini-spinner"></div>
+        <span id="ocr-progress-text">Iniciando OCR…</span>
+      </div>
+
+      <div class="ocr-result-grid" id="ocr-result-grid" style="display:none;">
+        <div class="ocr-field">
+          <label>Actual Individuals <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(extraído do EPM)</span></label>
+          <input type="number" id="ocr-actual-ind" min="0" step="1" placeholder="—"
+            oninput="syncOcrToFields()"/>
+        </div>
+        <div class="ocr-field">
+          <label>Actual SQOR <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(extraído do EPM)</span></label>
+          <input type="number" id="ocr-actual-sqor" min="0" step="1" placeholder="—"
+            oninput="syncOcrToFields()"/>
+        </div>
+      </div>
+
+      <div class="ocr-raw" id="ocr-raw-toggle" onclick="toggleOcrRaw()">
+        Ver texto bruto extraído pelo OCR
+      </div>
+      <pre id="ocr-raw-text"></pre>
     </div>
 
     <div id="kpi-preview">
@@ -1096,6 +1201,7 @@ function renderSelectedEvent(ev) {
   document.getElementById("pill-meta").textContent =
     `Brief: ${ev.brief}  ·  ${rows.length} KPI row(s) · ${sources.length} arquivo(s)${atInfo}`;
   document.getElementById("selected-event-info").style.display = "block";
+  document.getElementById("ocr-section").style.display = "block";
 
   // Airtable fields
   document.getElementById("at-event-name").textContent = ev.event_name || "—";
@@ -1145,13 +1251,197 @@ document.getElementById("clear-event").addEventListener("click", () => {
   searchInput.value = "";
   document.getElementById("selected-event-info").style.display = "none";
   document.getElementById("kpi-preview").style.display = "none";
+  document.getElementById("ocr-section").style.display = "none";
   document.getElementById("at-event-name").textContent = "—";
   document.getElementById("input-expected-ind").value = "";
   document.getElementById("input-actual-ind").value = "";
   document.getElementById("ind-delta").textContent = "—";
   document.getElementById("ind-delta").style.color = "#161616";
+  resetOcr();
   updateGenerateBtn();
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// OCR — Tesseract.js client-side image extraction
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Drag-and-drop support on the OCR drop zone
+const ocrDrop = document.getElementById("ocr-drop");
+ocrDrop.addEventListener("dragover",  (e) => { e.preventDefault(); ocrDrop.classList.add("dragover"); });
+ocrDrop.addEventListener("dragleave", ()  => ocrDrop.classList.remove("dragover"));
+ocrDrop.addEventListener("drop", (e) => {
+  e.preventDefault();
+  ocrDrop.classList.remove("dragover");
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith("image/")) handleOcrFile(file);
+});
+
+function resetOcr() {
+  document.getElementById("ocr-file-input").value = "";
+  document.getElementById("ocr-preview-img").style.display = "none";
+  document.getElementById("ocr-preview-img").src = "";
+  document.getElementById("ocr-progress").classList.remove("visible");
+  document.getElementById("ocr-result-grid").style.display = "none";
+  document.getElementById("ocr-actual-ind").value = "";
+  document.getElementById("ocr-actual-sqor").value = "";
+  document.getElementById("ocr-raw-toggle").style.display = "none";
+  document.getElementById("ocr-raw-text").style.display = "none";
+  document.getElementById("ocr-raw-text").textContent = "";
+  ocrDrop.classList.remove("has-image");
+  // Reset the drop zone inner text (in case it was replaced)
+  if (!ocrDrop.querySelector(".dz-text")) {
+    ocrDrop.innerHTML = `
+      <input type="file" id="ocr-file-input" accept="image/*" onchange="handleOcrFile(this.files[0])"/>
+      <div class="dz-icon">🖼</div>
+      <div class="dz-text">Clique ou arraste o screenshot do EPM aqui</div>
+      <div class="dz-hint">PNG, JPG, BMP, TIFF — o OCR extrai os dados automaticamente</div>
+    `;
+  }
+}
+
+function toggleOcrRaw() {
+  const el = document.getElementById("ocr-raw-text");
+  el.style.display = el.style.display === "none" ? "block" : "none";
+}
+
+function syncOcrToFields() {
+  // Mirror OCR-extracted values into the main Actual Individuals field + update delta
+  const indVal = document.getElementById("ocr-actual-ind").value;
+  if (indVal) {
+    document.getElementById("input-actual-ind").value = indVal;
+    updateDelta();
+  }
+}
+
+async function handleOcrFile(file) {
+  if (!file) return;
+
+  // Show preview
+  const imgEl = document.getElementById("ocr-preview-img");
+  imgEl.src = URL.createObjectURL(file);
+  imgEl.style.display = "block";
+  ocrDrop.classList.add("has-image");
+
+  // Show progress
+  const progressEl = document.getElementById("ocr-progress");
+  const progressText = document.getElementById("ocr-progress-text");
+  progressEl.classList.add("visible");
+  progressText.textContent = "Inicializando motor OCR…";
+  document.getElementById("ocr-result-grid").style.display = "none";
+  document.getElementById("ocr-raw-toggle").style.display = "none";
+
+  try {
+    // Run Tesseract OCR
+    const worker = await Tesseract.createWorker("eng", 1, {
+      logger: (m) => {
+        if (m.status === "recognizing text") {
+          progressText.textContent = `OCR em progresso… ${Math.round((m.progress || 0) * 100)}%`;
+        } else if (m.status) {
+          progressText.textContent = m.status.charAt(0).toUpperCase() + m.status.slice(1) + "…";
+        }
+      },
+    });
+
+    const result = await worker.recognize(file);
+    await worker.terminate();
+
+    const rawText = result.data.text;
+
+    // Show raw text toggle
+    document.getElementById("ocr-raw-text").textContent = rawText;
+    document.getElementById("ocr-raw-toggle").style.display = "block";
+
+    // ── Parse extracted text ─────────────────────────────────────────────
+    const extracted = parseEpmText(rawText);
+
+    // Fill fields
+    const indInput  = document.getElementById("ocr-actual-ind");
+    const sqorInput = document.getElementById("ocr-actual-sqor");
+
+    if (extracted.individuals !== null) {
+      indInput.value = extracted.individuals;
+      indInput.classList.add("auto-filled");
+    } else {
+      indInput.value = "";
+      indInput.classList.remove("auto-filled");
+    }
+
+    if (extracted.sqor !== null) {
+      sqorInput.value = extracted.sqor;
+      sqorInput.classList.add("auto-filled");
+    } else {
+      sqorInput.value = "";
+      sqorInput.classList.remove("auto-filled");
+    }
+
+    // Mirror to main Actual Individuals field
+    syncOcrToFields();
+
+    // Show result grid
+    document.getElementById("ocr-result-grid").style.display = "grid";
+    progressEl.classList.remove("visible");
+
+    const found = [
+      extracted.individuals !== null ? `Individuals: ${extracted.individuals}` : null,
+      extracted.sqor        !== null ? `SQOR: $${Number(extracted.sqor).toLocaleString("en-US")}` : null,
+    ].filter(Boolean);
+
+    progressText.textContent = found.length
+      ? `✓ Extraído: ${found.join("  ·  ")}`
+      : "⚠ Nenhum valor reconhecido — verifique os campos manualmente";
+    progressEl.classList.add("visible");
+
+  } catch (err) {
+    progressText.textContent = "⚠ Erro no OCR: " + err.message;
+    console.error("OCR error:", err);
+  }
+}
+
+function parseEpmText(text) {
+  // Normalise — remove line breaks, collapse spaces, strip commas from numbers
+  const t = text.replace(/\n/g, " ").replace(/\s{2,}/g, " ");
+
+  let individuals = null;
+  let sqor = null;
+
+  // ── Attendees / Individuals ─────────────────────────────────────────────
+  // Patterns: "Attendees 1,234"  "Total Attendees: 1234"  "Registered 1,234"
+  //           "Individuals 456"  "Actual Attendees 789"
+  const indPatterns = [
+    /(?:total\s+)?attendees?\s*[:\-]?\s*([\d,]+)/i,
+    /(?:actual\s+)?individuals?\s*[:\-]?\s*([\d,]+)/i,
+    /registered\s*[:\-]?\s*([\d,]+)/i,
+    /participants?\s*[:\-]?\s*([\d,]+)/i,
+    /\battended\s*[:\-]?\s*([\d,]+)/i,
+  ];
+  for (const pat of indPatterns) {
+    const m = t.match(pat);
+    if (m) { individuals = parseInt(m[1].replace(/,/g, ""), 10); break; }
+  }
+
+  // ── SQO / Pipeline Creation ─────────────────────────────────────────────
+  // Patterns: "SQO Creation $1,234,567"  "Pipeline Created $2.3M"
+  //           "SQO $1.2M"  "SQOR: $500,000"  "Opportunities $234,000"
+  const sqorPatterns = [
+    /sqo(?:r)?\s*(?:creation|created|pipeline)?\s*[:\-]?\s*\$?\s*([\d,]+(?:\.\d+)?)\s*([kKmMbB]?)/i,
+    /pipeline\s*(?:created|creation|generated)?\s*[:\-]?\s*\$?\s*([\d,]+(?:\.\d+)?)\s*([kKmMbB]?)/i,
+    /opportunities?\s*[:\-]?\s*\$?\s*([\d,]+(?:\.\d+)?)\s*([kKmMbB]?)/i,
+  ];
+  for (const pat of sqorPatterns) {
+    const m = t.match(pat);
+    if (m) {
+      let val = parseFloat(m[1].replace(/,/g, ""));
+      const suffix = (m[2] || "").toUpperCase();
+      if (suffix === "K") val *= 1_000;
+      else if (suffix === "M") val *= 1_000_000;
+      else if (suffix === "B") val *= 1_000_000_000;
+      sqor = Math.round(val);
+      break;
+    }
+  }
+
+  return { individuals, sqor };
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // GENERATE BUTTON STATE
@@ -1222,13 +1512,16 @@ function buildMainSlide(pptx, ev) {
   const epmPullDate = new Date().toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "2-digit" });
 
   // Read live values from the UI fields (user may have edited them)
-  const expIndRaw = parseFloat(document.getElementById("input-expected-ind").value);
-  const actIndRaw = parseFloat(document.getElementById("input-actual-ind").value);
+  const expIndRaw  = parseFloat(document.getElementById("input-expected-ind").value);
+  const actIndRaw  = parseFloat(document.getElementById("input-actual-ind").value);
+  const actSqorRaw = parseFloat(document.getElementById("ocr-actual-sqor").value);
+
   const expInd    = !isNaN(expIndRaw) ? expIndRaw.toLocaleString("en-US") : "";
   const actInd    = !isNaN(actIndRaw) ? actIndRaw.toLocaleString("en-US") : "";
   const deltaInd  = (!isNaN(expIndRaw) && !isNaN(actIndRaw))
     ? ((actIndRaw - expIndRaw >= 0 ? "+" : "") + (actIndRaw - expIndRaw).toLocaleString("en-US"))
     : "";
+  const actSqorFmt = !isNaN(actSqorRaw) ? fmtCur(actSqorRaw) : "";
 
   // Shared table style helpers
   const DARK  = "1F3864";   // IBM dark blue — header bg
@@ -1332,9 +1625,12 @@ function buildMainSlide(pptx, ev) {
   // ── Table 19 (2×3) — Expected SQOR (id=20)
   //    x=0.42cm  y=6.04cm  w=9.87cm  — 3 equal columns
   const sW = cm(9.87) / 3;
+  const deltaSqorFmt = (expSqor && actSqorFmt)
+    ? (() => { const d = actSqorRaw - (ev.kpi_rows||[]).reduce((s,r)=>s+(r[{CQ:"cq",NQ:"nq","NQ+1":"nq1","NQ+2":"nq2"}[sqorBucket]||"cq"]||0),0); return (d>=0?"+":"") + fmtCur(Math.abs(d)); })()
+    : "";
   slide.addTable([
     [ mCell(`Expected SQOR by end of ${sqorBucket}`), mCell(`Actual SQOR as of ${epmPullDate}`), mCell("Delta (+/-)") ],
-    [ dCell(expSqor), dCell(""), dCell("") ],
+    [ dCell(expSqor), dCell(actSqorFmt), dCell(deltaSqorFmt) ],
   ], {
     x: cm(0.42), y: cm(6.04), w: cm(9.87), colW: [sW, sW, sW],
     rowH: 0.3, ...tblFont,
