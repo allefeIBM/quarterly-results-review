@@ -467,16 +467,30 @@
         <span id="ocr-progress-text">Iniciando OCR…</span>
       </div>
 
-      <div class="ocr-result-grid" id="ocr-result-grid" style="display:none;">
+      <div class="ocr-result-grid" id="ocr-result-grid" style="display:none; grid-template-columns:1fr 1fr;">
         <div class="ocr-field">
-          <label>Actual Individuals <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(extraído do EPM)</span></label>
-          <input type="number" id="ocr-actual-ind" min="0" step="1" placeholder="—"
-            oninput="syncOcrToFields()"/>
+          <label>Attendees (Actual Individuals) <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(extraído)</span></label>
+          <input type="number" id="ocr-actual-ind" min="0" step="1" placeholder="—" oninput="syncOcrToFields()"/>
         </div>
         <div class="ocr-field">
-          <label>Actual SQOR <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(extraído do EPM)</span></label>
-          <input type="number" id="ocr-actual-sqor" min="0" step="1" placeholder="—"
-            oninput="syncOcrToFields()"/>
+          <label>SQO Creation (Actual SQOR) <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(extraído)</span></label>
+          <input type="number" id="ocr-actual-sqor" min="0" step="1" placeholder="—" oninput="syncOcrToFields()"/>
+        </div>
+        <div class="ocr-field">
+          <label>Named Accounts <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(extraído — nº de pessoas)</span></label>
+          <input type="number" id="ocr-named" min="0" step="1" placeholder="—" oninput="syncOcrToFields()"/>
+        </div>
+        <div class="ocr-field">
+          <label>Horizon Accounts <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(extraído — nº de pessoas)</span></label>
+          <input type="number" id="ocr-horizon" min="0" step="1" placeholder="—" oninput="syncOcrToFields()"/>
+        </div>
+        <div class="ocr-field" style="grid-column:1/3;">
+          <label>% Named Accounts calculado <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(Named ÷ Attendees)</span></label>
+          <div id="ocr-named-pct" style="padding:9px 12px;border:1px solid #e0e0e0;background:#f4f4f4;font-size:13px;font-weight:600;">—</div>
+        </div>
+        <div class="ocr-field" style="grid-column:1/3;">
+          <label>% Horizon Accounts calculado <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(Horizon ÷ Attendees)</span></label>
+          <div id="ocr-horizon-pct" style="padding:9px 12px;border:1px solid #e0e0e0;background:#f4f4f4;font-size:13px;font-weight:600;">—</div>
         </div>
       </div>
 
@@ -1282,13 +1296,16 @@ function resetOcr() {
   document.getElementById("ocr-preview-img").src = "";
   document.getElementById("ocr-progress").classList.remove("visible");
   document.getElementById("ocr-result-grid").style.display = "none";
-  document.getElementById("ocr-actual-ind").value = "";
-  document.getElementById("ocr-actual-sqor").value = "";
+  ["ocr-actual-ind","ocr-actual-sqor","ocr-named","ocr-horizon"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ""; el.classList.remove("auto-filled"); }
+  });
+  document.getElementById("ocr-named-pct").textContent   = "—";
+  document.getElementById("ocr-horizon-pct").textContent = "—";
   document.getElementById("ocr-raw-toggle").style.display = "none";
   document.getElementById("ocr-raw-text").style.display = "none";
   document.getElementById("ocr-raw-text").textContent = "";
   ocrDrop.classList.remove("has-image");
-  // Reset the drop zone inner text (in case it was replaced)
   if (!ocrDrop.querySelector(".dz-text")) {
     ocrDrop.innerHTML = `
       <input type="file" id="ocr-file-input" accept="image/*" onchange="handleOcrFile(this.files[0])"/>
@@ -1304,34 +1321,47 @@ function toggleOcrRaw() {
   el.style.display = el.style.display === "none" ? "block" : "none";
 }
 
+// Called whenever any OCR field is edited manually — keeps percentages live
 function syncOcrToFields() {
-  // Mirror OCR-extracted values into the main Actual Individuals field + update delta
-  const indVal = document.getElementById("ocr-actual-ind").value;
-  if (indVal) {
-    document.getElementById("input-actual-ind").value = indVal;
+  const ind  = parseFloat(document.getElementById("ocr-actual-ind").value);
+  const named   = parseFloat(document.getElementById("ocr-named").value);
+  const horizon = parseFloat(document.getElementById("ocr-horizon").value);
+
+  // Mirror attendees → main Actual Individuals field + recalc delta
+  if (!isNaN(ind)) {
+    document.getElementById("input-actual-ind").value = ind;
     updateDelta();
   }
+
+  // Recalculate % Named
+  const namedPctEl = document.getElementById("ocr-named-pct");
+  if (!isNaN(named) && !isNaN(ind) && ind > 0) {
+    namedPctEl.textContent = (named / ind * 100).toFixed(1) + "%  (" + named + "/" + ind + ")";
+  } else { namedPctEl.textContent = "—"; }
+
+  // Recalculate % Horizon
+  const horizonPctEl = document.getElementById("ocr-horizon-pct");
+  if (!isNaN(horizon) && !isNaN(ind) && ind > 0) {
+    horizonPctEl.textContent = (horizon / ind * 100).toFixed(1) + "%  (" + horizon + "/" + ind + ")";
+  } else { horizonPctEl.textContent = "—"; }
 }
 
 async function handleOcrFile(file) {
   if (!file) return;
 
-  // Show preview
   const imgEl = document.getElementById("ocr-preview-img");
   imgEl.src = URL.createObjectURL(file);
   imgEl.style.display = "block";
   ocrDrop.classList.add("has-image");
 
-  // Show progress
-  const progressEl = document.getElementById("ocr-progress");
+  const progressEl   = document.getElementById("ocr-progress");
   const progressText = document.getElementById("ocr-progress-text");
   progressEl.classList.add("visible");
   progressText.textContent = "Inicializando motor OCR…";
   document.getElementById("ocr-result-grid").style.display = "none";
-  document.getElementById("ocr-raw-toggle").style.display = "none";
+  document.getElementById("ocr-raw-toggle").style.display  = "none";
 
   try {
-    // Run Tesseract OCR
     const worker = await Tesseract.createWorker("eng", 1, {
       logger: (m) => {
         if (m.status === "recognizing text") {
@@ -1346,44 +1376,34 @@ async function handleOcrFile(file) {
     await worker.terminate();
 
     const rawText = result.data.text;
-
-    // Show raw text toggle
     document.getElementById("ocr-raw-text").textContent = rawText;
     document.getElementById("ocr-raw-toggle").style.display = "block";
 
-    // ── Parse extracted text ─────────────────────────────────────────────
-    const extracted = parseEpmText(rawText);
+    const ex = parseEpmText(rawText);
 
-    // Fill fields
-    const indInput  = document.getElementById("ocr-actual-ind");
-    const sqorInput = document.getElementById("ocr-actual-sqor");
-
-    if (extracted.individuals !== null) {
-      indInput.value = extracted.individuals;
-      indInput.classList.add("auto-filled");
-    } else {
-      indInput.value = "";
-      indInput.classList.remove("auto-filled");
+    // Helper: fill a field and mark it auto-filled
+    function fill(id, val) {
+      const el = document.getElementById(id);
+      if (val !== null) { el.value = val; el.classList.add("auto-filled"); }
+      else              { el.value = ""; el.classList.remove("auto-filled"); }
     }
 
-    if (extracted.sqor !== null) {
-      sqorInput.value = extracted.sqor;
-      sqorInput.classList.add("auto-filled");
-    } else {
-      sqorInput.value = "";
-      sqorInput.classList.remove("auto-filled");
-    }
+    fill("ocr-actual-ind",  ex.individuals);
+    fill("ocr-actual-sqor", ex.sqor);
+    fill("ocr-named",       ex.named);
+    fill("ocr-horizon",     ex.horizon);
 
-    // Mirror to main Actual Individuals field
+    // Trigger percentage calculation + delta
     syncOcrToFields();
 
-    // Show result grid
     document.getElementById("ocr-result-grid").style.display = "grid";
     progressEl.classList.remove("visible");
 
     const found = [
-      extracted.individuals !== null ? `Individuals: ${extracted.individuals}` : null,
-      extracted.sqor        !== null ? `SQOR: $${Number(extracted.sqor).toLocaleString("en-US")}` : null,
+      ex.individuals !== null ? `Attendees: ${ex.individuals}` : null,
+      ex.sqor        !== null ? `SQO: $${Number(ex.sqor).toLocaleString("en-US")}` : null,
+      ex.named       !== null ? `Named: ${ex.named}` : null,
+      ex.horizon     !== null ? `Horizon: ${ex.horizon}` : null,
     ].filter(Boolean);
 
     progressText.textContent = found.length
@@ -1398,49 +1418,78 @@ async function handleOcrFile(file) {
 }
 
 function parseEpmText(text) {
-  // Normalise — remove line breaks, collapse spaces, strip commas from numbers
-  const t = text.replace(/\n/g, " ").replace(/\s{2,}/g, " ");
+  // Work on the original text (with newlines) and a collapsed version
+  const t  = text.replace(/\n/g, " ").replace(/\s{2,}/g, " ");  // single line
+  const tN = text;  // keep newlines for line-by-line patterns
 
   let individuals = null;
-  let sqor = null;
+  let sqor        = null;
+  let named       = null;
+  let horizon     = null;
 
-  // ── Attendees / Individuals ─────────────────────────────────────────────
-  // Patterns: "Attendees 1,234"  "Total Attendees: 1234"  "Registered 1,234"
-  //           "Individuals 456"  "Actual Attendees 789"
-  const indPatterns = [
-    /(?:total\s+)?attendees?\s*[:\-]?\s*([\d,]+)/i,
+  // ── Helper: parse number with optional K/M/B suffix ──────────────────────
+  function parseNum(raw, suffix) {
+    let v = parseFloat((raw || "").replace(/,/g, ""));
+    if (isNaN(v)) return null;
+    const s = (suffix || "").toUpperCase();
+    if (s === "K") v *= 1_000;
+    else if (s === "M") v *= 1_000_000;
+    else if (s === "B") v *= 1_000_000_000;
+    return Math.round(v);
+  }
+
+  // ── Attendees (Actual Individuals) ───────────────────────────────────────
+  // EPM shows: "Attendees" label with number nearby (same line or next token)
+  // Priority: exact "Attendees" label → fallback broader patterns
+  const attPatterns = [
+    /\battendees?\b\s*[:\-]?\s*([\d,]+)/i,
+    /total\s+attendees?\s*[:\-]?\s*([\d,]+)/i,
     /(?:actual\s+)?individuals?\s*[:\-]?\s*([\d,]+)/i,
-    /registered\s*[:\-]?\s*([\d,]+)/i,
-    /participants?\s*[:\-]?\s*([\d,]+)/i,
-    /\battended\s*[:\-]?\s*([\d,]+)/i,
+    /\battended\b\s*[:\-]?\s*([\d,]+)/i,
+    /\bregistered\b\s*[:\-]?\s*([\d,]+)/i,
+    /\bparticipants?\b\s*[:\-]?\s*([\d,]+)/i,
   ];
-  for (const pat of indPatterns) {
+  for (const pat of attPatterns) {
     const m = t.match(pat);
     if (m) { individuals = parseInt(m[1].replace(/,/g, ""), 10); break; }
   }
 
-  // ── SQO / Pipeline Creation ─────────────────────────────────────────────
-  // Patterns: "SQO Creation $1,234,567"  "Pipeline Created $2.3M"
-  //           "SQO $1.2M"  "SQOR: $500,000"  "Opportunities $234,000"
-  const sqorPatterns = [
-    /sqo(?:r)?\s*(?:creation|created|pipeline)?\s*[:\-]?\s*\$?\s*([\d,]+(?:\.\d+)?)\s*([kKmMbB]?)/i,
-    /pipeline\s*(?:created|creation|generated)?\s*[:\-]?\s*\$?\s*([\d,]+(?:\.\d+)?)\s*([kKmMbB]?)/i,
-    /opportunities?\s*[:\-]?\s*\$?\s*([\d,]+(?:\.\d+)?)\s*([kKmMbB]?)/i,
+  // ── SQO Creation ─────────────────────────────────────────────────────────
+  // EPM shows: "SQO Creation" followed by dollar amount
+  const sqoPatterns = [
+    /sqo\s*creation\s*[:\-]?\s*\$?\s*([\d,]+(?:\.\d+)?)\s*([kKmMbB]?)/i,
+    /sqo(?:r)?\s*[:\-]?\s*\$?\s*([\d,]+(?:\.\d+)?)\s*([kKmMbB]?)/i,
+    /pipeline\s*(?:creat(?:ed|ion))?\s*[:\-]?\s*\$?\s*([\d,]+(?:\.\d+)?)\s*([kKmMbB]?)/i,
+    /opportunities?\s+(?:created|generated)?\s*[:\-]?\s*\$?\s*([\d,]+(?:\.\d+)?)\s*([kKmMbB]?)/i,
   ];
-  for (const pat of sqorPatterns) {
+  for (const pat of sqoPatterns) {
     const m = t.match(pat);
-    if (m) {
-      let val = parseFloat(m[1].replace(/,/g, ""));
-      const suffix = (m[2] || "").toUpperCase();
-      if (suffix === "K") val *= 1_000;
-      else if (suffix === "M") val *= 1_000_000;
-      else if (suffix === "B") val *= 1_000_000_000;
-      sqor = Math.round(val);
-      break;
-    }
+    if (m) { sqor = parseNum(m[1], m[2]); break; }
   }
 
-  return { individuals, sqor };
+  // ── Named Accounts ────────────────────────────────────────────────────────
+  // EPM shows: "Named Accounts" or "Named" with a count nearby
+  const namedPatterns = [
+    /named\s+accounts?\s*[:\-]?\s*([\d,]+)/i,
+    /\bnamed\b\s*[:\-]?\s*([\d,]+)/i,
+  ];
+  for (const pat of namedPatterns) {
+    const m = t.match(pat);
+    if (m) { named = parseInt(m[1].replace(/,/g, ""), 10); break; }
+  }
+
+  // ── Horizon Accounts ─────────────────────────────────────────────────────
+  // EPM shows: "Horizon" or "Horizon Accounts" with a count nearby
+  const horizonPatterns = [
+    /horizon\s+accounts?\s*[:\-]?\s*([\d,]+)/i,
+    /\bhorizon\b\s*[:\-]?\s*([\d,]+)/i,
+  ];
+  for (const pat of horizonPatterns) {
+    const m = t.match(pat);
+    if (m) { horizon = parseInt(m[1].replace(/,/g, ""), 10); break; }
+  }
+
+  return { individuals, sqor, named, horizon };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1512,16 +1561,38 @@ function buildMainSlide(pptx, ev) {
   const epmPullDate = new Date().toLocaleDateString("en-US", { month: "numeric", day: "numeric", year: "2-digit" });
 
   // Read live values from the UI fields (user may have edited them)
-  const expIndRaw  = parseFloat(document.getElementById("input-expected-ind").value);
-  const actIndRaw  = parseFloat(document.getElementById("input-actual-ind").value);
-  const actSqorRaw = parseFloat(document.getElementById("ocr-actual-sqor").value);
+  const expIndRaw   = parseFloat(document.getElementById("input-expected-ind").value);
+  const actIndRaw   = parseFloat(document.getElementById("input-actual-ind").value);
+  const actSqorRaw  = parseFloat(document.getElementById("ocr-actual-sqor").value);
+  const namedRaw    = parseFloat(document.getElementById("ocr-named").value);
+  const horizonRaw  = parseFloat(document.getElementById("ocr-horizon").value);
 
-  const expInd    = !isNaN(expIndRaw) ? expIndRaw.toLocaleString("en-US") : "";
-  const actInd    = !isNaN(actIndRaw) ? actIndRaw.toLocaleString("en-US") : "";
-  const deltaInd  = (!isNaN(expIndRaw) && !isNaN(actIndRaw))
+  // Individuals
+  const expInd   = !isNaN(expIndRaw) ? expIndRaw.toLocaleString("en-US") : "";
+  const actInd   = !isNaN(actIndRaw) ? actIndRaw.toLocaleString("en-US") : "";
+  const deltaInd = (!isNaN(expIndRaw) && !isNaN(actIndRaw))
     ? ((actIndRaw - expIndRaw >= 0 ? "+" : "") + (actIndRaw - expIndRaw).toLocaleString("en-US"))
     : "";
-  const actSqorFmt = !isNaN(actSqorRaw) ? fmtCur(actSqorRaw) : "";
+
+  // SQOR
+  const expSqorRaw  = (ev.kpi_rows || []).reduce((s, r) => {
+    const key = { CQ: "cq", NQ: "nq", "NQ+1": "nq1", "NQ+2": "nq2" }[sqorBucket];
+    return s + (key ? (r[key] || 0) : 0);
+  }, 0);
+  const actSqorFmt  = !isNaN(actSqorRaw) ? fmtCur(actSqorRaw) : "";
+  const deltaSqorFmt = (!isNaN(actSqorRaw) && expSqorRaw)
+    ? ((actSqorRaw - expSqorRaw >= 0 ? "+" : "") + fmtCur(Math.abs(actSqorRaw - expSqorRaw)))
+    : "";
+
+  // % Named Accounts = Named / Attendees
+  const namedPct = (!isNaN(namedRaw) && !isNaN(actIndRaw) && actIndRaw > 0)
+    ? (namedRaw / actIndRaw * 100).toFixed(1) + "%\n(" + namedRaw + "/" + actIndRaw + ")"
+    : "X%";
+
+  // % Horizon Accounts = Horizon / Attendees
+  const horizonPct = (!isNaN(horizonRaw) && !isNaN(actIndRaw) && actIndRaw > 0)
+    ? (horizonRaw / actIndRaw * 100).toFixed(1) + "%\n(" + horizonRaw + "/" + actIndRaw + ")"
+    : "X%";
 
   // Shared table style helpers
   const DARK  = "1F3864";   // IBM dark blue — header bg
@@ -1625,9 +1696,6 @@ function buildMainSlide(pptx, ev) {
   // ── Table 19 (2×3) — Expected SQOR (id=20)
   //    x=0.42cm  y=6.04cm  w=9.87cm  — 3 equal columns
   const sW = cm(9.87) / 3;
-  const deltaSqorFmt = (expSqor && actSqorFmt)
-    ? (() => { const d = actSqorRaw - (ev.kpi_rows||[]).reduce((s,r)=>s+(r[{CQ:"cq",NQ:"nq","NQ+1":"nq1","NQ+2":"nq2"}[sqorBucket]||"cq"]||0),0); return (d>=0?"+":"") + fmtCur(Math.abs(d)); })()
-    : "";
   slide.addTable([
     [ mCell(`Expected SQOR by end of ${sqorBucket}`), mCell(`Actual SQOR as of ${epmPullDate}`), mCell("Delta (+/-)") ],
     [ dCell(expSqor), dCell(actSqorFmt), dCell(deltaSqorFmt) ],
@@ -1640,7 +1708,7 @@ function buildMainSlide(pptx, ev) {
   //    x=0.72cm  y=9.40cm  w=3.98cm
   slide.addTable([
     [ mCell("% Named Accounts\n(# of Named/Total Attendees)", { fontSize: 8 }) ],
-    [ dCell("X%", { fontSize: 14, bold: true }) ],
+    [ dCell(namedPct, { fontSize: namedPct === "X%" ? 14 : 11, bold: true }) ],
   ], {
     x: cm(0.72), y: cm(9.40), w: cm(3.98),
     rowH: [0.5, 0.5], ...tblFont,
@@ -1650,7 +1718,7 @@ function buildMainSlide(pptx, ev) {
   //    x=6.23cm  y=9.36cm  w=3.98cm
   slide.addTable([
     [ mCell("% Horizon Accounts\n(# of Horizon/Total Attendees)", { fontSize: 8 }) ],
-    [ dCell("X%", { fontSize: 14, bold: true }) ],
+    [ dCell(horizonPct, { fontSize: horizonPct === "X%" ? 14 : 11, bold: true }) ],
   ], {
     x: cm(6.23), y: cm(9.36), w: cm(3.98),
     rowH: [0.5, 0.5], ...tblFont,
