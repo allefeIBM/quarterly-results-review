@@ -917,6 +917,7 @@ function quarterBucket(eventDate) {
 let searchIndex = [];   // [{event_name, brief}] — built from data.json
 let focusedIdx  = -1;
 let searchDebounce = null;
+let searchGeneration = 0; // incremented on every new search to cancel stale async results
 
 function rebuildSearchIndex() {
   const seen = new Set();
@@ -938,38 +939,40 @@ document.addEventListener("click", (e) => {
   if (!e.target.closest(".search-wrap")) closeDropdown();
 });
 
-async function onSearch() {
+function getLocalMatches(query) {
+  const ql = query.toLowerCase();
+  return searchIndex.filter(ev =>
+    ev.brief.toLowerCase().includes(ql) || ev.event_name.toLowerCase().includes(ql)
+  ).slice(0, 50);
+}
+
+function onSearch() {
   const q = searchInput.value.trim();
   if (q.length < 2) { closeDropdown(); return; }
 
-  // Helper: filter searchIndex with the CURRENT state (called at render time, not closure time)
-  function getLocalMatches(query) {
-    const ql = query.toLowerCase();
-    return searchIndex.filter(ev =>
-      ev.brief.toLowerCase().includes(ql) || ev.event_name.toLowerCase().includes(ql)
-    ).slice(0, 50);
-  }
+  // Increment generation — any in-flight async callbacks from older generations are discarded
+  const gen = ++searchGeneration;
 
-  // Show local matches immediately (re-read searchIndex now)
+  // Show local matches immediately (synchronous — always up to date)
   const localNow = getLocalMatches(q);
-  renderDropdown(localNow.length ? localNow : null, q, true);
+  renderDropdown(localNow.length ? localNow : null, q, false);
 
-  // Then try Airtable in parallel (debounced)
+  // Airtable enrichment — debounced, only if token is configured
+  const token = localStorage.getItem("at_token") || "";
+  if (!token) return; // no token → local-only, already rendered above
+
   clearTimeout(searchDebounce);
   searchDebounce = setTimeout(async () => {
-    // Re-read searchIndex at callback time — it may have loaded since onSearch was called
-    const localFresh = getLocalMatches(q);
+    if (gen !== searchGeneration) return; // superseded by a newer search
     const atMatches = await searchAirtable(q);
-    if (!atMatches.length) {
-      // No Airtable results — show freshly-filtered local results (never stale)
-      renderDropdown(localFresh.length ? localFresh : null, q, false);
-      return;
-    }
-    // Merge: Airtable results first, then local extras not already in the list
+    if (gen !== searchGeneration) return; // superseded while awaiting Airtable
+    if (!atMatches.length) return;        // no Airtable results → keep local render intact
+    // Merge: Airtable first, then local extras not already in the list
+    const localFresh = getLocalMatches(q);
     const seen = new Set(atMatches.map(r => r.brief.toUpperCase()));
     const extras = localFresh.filter(r => !seen.has(r.brief.toUpperCase()));
     renderDropdown([...atMatches, ...extras].slice(0, 50), q, false);
-  }, 350);
+  }, 400);
 }
 
 function renderDropdown(matches, q, loading = false) {
