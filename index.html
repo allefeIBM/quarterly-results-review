@@ -692,9 +692,7 @@ async function loadFromDataJson() {
     for (const ev of Object.values(allEvents))
       for (const r of ev.kpi_rows) fileSet.add(r.source_file);
 
-    setDataStatus("ok",
-      `✓ <strong>${evCount} eventos</strong> prontos para busca · ${fileSet.size} planilhas · atualizado em ${(payload.generated || "").replace("T", " ")}`
-    );
+    // Success — no message shown to the user, data is silently ready
   } catch (e) {
     dataReady = true; // unblock the search even on error (will show "no results")
     setDataStatus("error",
