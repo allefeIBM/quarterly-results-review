@@ -620,7 +620,14 @@ document.addEventListener("DOMContentLoaded", () => {
   // 1. Always load KPI data first — independent of Airtable config
   loadFromDataJson();
 
-  // 2. Airtable modal (first time only) — shown after data is already loading
+  // 2. Clear all OCR/AI fields on every page load — never persist between sessions
+  ["ocr-actual-ind","ocr-actual-sqor","ocr-named","ocr-horizon",
+   "input-expected-ind","input-actual-ind"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ""; el.classList.remove("auto-filled"); }
+  });
+
+  // 3. Airtable modal (first time only) — shown after data is already loading
   const alreadyConfigured = localStorage.getItem("at_configured");
   if (!alreadyConfigured) {
     showModal();
