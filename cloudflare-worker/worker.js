@@ -10,16 +10,24 @@
 const GEMINI_MODEL = "gemini-3.6-flash";
 const GEMINI_URL   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-const PROMPT = `Look at this image and find these four numbers. Return ONLY a single JSON object, nothing else — no text before, no text after, no markdown, no explanation.
+const PROMPT = `Look at this image. Find and return these four numbers:
+1. The integer next to "Attendees" or "Total Attendees"
+2. The dollar amount next to "SQO Creation" — convert to full number (e.g. $2.1M = 2100000, $0.7M = 700000, $1.5K = 1500). Return the full integer, no $ or suffixes.
+3. The integer next to "Named Accounts"
+4. The integer next to "Horizon Accounts"
+If a value is not visible in the image, use null.`;
 
-JSON keys to return:
-"individuals" = the integer next to the label "Attendees" or "Total Attendees" (null if not visible)
-"sqor" = the number next to the label "SQO Creation" with $ removed and no commas (null if not visible)
-"named" = the integer next to the label "Named Accounts" (null if not visible)
-"horizon" = the integer next to the label "Horizon Accounts" (null if not visible)
-
-Your entire response must be exactly this format and nothing else:
-{"individuals":245,"sqor":180000,"named":120,"horizon":55}`;
+// Force Gemini to return a strict JSON schema — most reliable approach
+const RESPONSE_SCHEMA = {
+  type: "object",
+  properties: {
+    individuals: { type: "integer", nullable: true, description: "Number next to Attendees or Total Attendees" },
+    sqor:        { type: "number",  nullable: true, description: "Full dollar amount next to SQO Creation converted to integer (e.g. $2.1M = 2100000)" },
+    named:       { type: "integer", nullable: true, description: "Number next to Named Accounts" },
+    horizon:     { type: "integer", nullable: true, description: "Number next to Horizon Accounts" },
+  },
+  required: ["individuals", "sqor", "named", "horizon"],
+};
 
 export default {
   async fetch(request, env) {
@@ -64,7 +72,11 @@ export default {
             { inline_data: { mime_type, data: image_base64 } },
           ],
         }],
-        generationConfig: { maxOutputTokens: 200, temperature: 0 },
+        generationConfig: {
+          temperature: 0,
+          responseMimeType: "application/json",
+          responseSchema: RESPONSE_SCHEMA,
+        },
       }),
     });
 

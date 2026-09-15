@@ -1456,6 +1456,24 @@ async function handleOcrFile(file) {
       }
     }
 
+    // Safety net: convert $M/$K suffixes in sqor in case the AI didn't expand them
+    // e.g. 2.1 when image shows $2.1M → treat as 2100000 only if value looks like M-scale
+    // The AI is instructed to expand, but if it returns a small decimal we convert here too.
+    if (ex.sqor !== null) {
+      // If the raw text contained "M" near the sqor value, multiply
+      const sqorMMatch = rawText.match(/sqo[^"]*[:\s]+\$?([\d.]+)\s*[Mm]/i);
+      const sqorKMatch = rawText.match(/sqo[^"]*[:\s]+\$?([\d.]+)\s*[Kk]/i);
+      if (sqorMMatch) {
+        ex.sqor = Math.round(parseFloat(sqorMMatch[1]) * 1_000_000);
+      } else if (sqorKMatch) {
+        ex.sqor = Math.round(parseFloat(sqorKMatch[1]) * 1_000);
+      } else if (ex.sqor < 1000 && ex.sqor > 0) {
+        // Value looks suspiciously small for a dollar amount — likely the AI
+        // returned the M-notation number without multiplying (e.g. 2.1 instead of 2100000)
+        ex.sqor = Math.round(ex.sqor * 1_000_000);
+      }
+    }
+
     // Helper: fill a field and mark it auto-filled
     function fill(id, val) {
       const el = document.getElementById(id);
