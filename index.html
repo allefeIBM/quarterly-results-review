@@ -9,8 +9,6 @@
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <!-- PptxGenJS (generate PPTX client-side) -->
   <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
-  <!-- Tesseract.js v4.1.4 — all assets from jsDelivr (no redirects, CORS *) -->
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.4/dist/tesseract.min.js"></script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -483,25 +481,25 @@
         </div>
       </div>
 
-      <!-- Upload opcional para preencher automaticamente via OCR -->
-      <details style="margin-bottom:8px;">
+      <!-- Upload opcional para preencher automaticamente via IA Vision -->
+      <details style="margin-bottom:8px;" id="ai-vision-details">
         <summary style="font-size:12px;font-weight:600;color:#525252;cursor:pointer;user-select:none;padding:8px 0;">
-          📷 Preencher automaticamente via screenshot do EPM (OCR)
+          🤖 Preencher automaticamente via IA (GPT-4o Vision)
         </summary>
         <div style="margin-top:10px;">
           <div class="ocr-drop" id="ocr-drop">
             <input type="file" id="ocr-file-input" accept="image/*" onchange="handleOcrFile(this.files[0])"/>
             <div class="dz-icon">🖼</div>
             <div class="dz-text">Clique ou arraste o screenshot do EPM aqui</div>
-            <div class="dz-hint">PNG, JPG, BMP, TIFF — os campos acima serão preenchidos automaticamente</div>
+            <div class="dz-hint">PNG, JPG, JPEG, PNG — a IA lerá os dados e preencherá os campos automaticamente</div>
           </div>
           <img id="ocr-preview-img" alt="Preview do screenshot" />
           <div class="ocr-progress" id="ocr-progress">
             <div class="mini-spinner"></div>
-            <span id="ocr-progress-text">Iniciando OCR…</span>
+            <span id="ocr-progress-text">Enviando para a IA…</span>
           </div>
           <div class="ocr-raw" id="ocr-raw-toggle" onclick="toggleOcrRaw()">
-            Ver texto bruto extraído pelo OCR
+            Ver resposta bruta da IA
           </div>
           <pre id="ocr-raw-text"></pre>
         </div>
@@ -596,6 +594,11 @@ let allEvents   = {};   // { BRIEF_UPPER: { event_name, brief, kpi_rows[], ...ai
 let selectedEvent = null;
 let airtableCache = {}; // brief_upper → airtable fields
 let dataReady = false;  // true once data.json has been parsed and searchIndex built
+
+// ── Cloudflare Worker URL (set after deploy) ──────────────────────────────────
+// Replace the placeholder below with your Worker URL after deploying.
+// Example: "https://gemini-vision-proxy.SEU-USUARIO.workers.dev"
+const AI_WORKER_URL = "https://proxy-vision.allefefaria2.workers.dev/";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -1301,7 +1304,7 @@ document.getElementById("clear-event").addEventListener("click", () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// OCR — Tesseract.js client-side image extraction
+// OCR drag-and-drop events
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // Drag-and-drop support on the OCR drop zone
@@ -1368,6 +1371,9 @@ function syncOcrToFields() {
   } else { horizonPctEl.textContent = "—"; }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// AI VISION — handleOcrFile via Cloudflare Worker (Gemini proxy)
+// ═══════════════════════════════════════════════════════════════════════════════
 async function handleOcrFile(file) {
   if (!file) return;
 
@@ -1379,60 +1385,60 @@ async function handleOcrFile(file) {
   const progressEl   = document.getElementById("ocr-progress");
   const progressText = document.getElementById("ocr-progress-text");
   progressEl.classList.add("visible");
-  progressText.textContent = "Baixando modelo OCR (só na 1ª vez, ~10 MB)…";
-  document.getElementById("ocr-raw-toggle").style.display  = "none";
+  document.getElementById("ocr-raw-toggle").style.display = "none";
 
-  // Tesseract.js v4 — all confirmed HTTP 200 on jsDelivr
-  // workerBlobURL:false → spawns Worker(url) directly, avoids importScripts wrapping that
-  // silently fails in some browsers when the blob worker tries to load a cross-origin script
-  const TESS_WORKER = "https://cdn.jsdelivr.net/npm/tesseract.js@4.1.4/dist/worker.min.js";
-  const TESS_CORE   = "https://cdn.jsdelivr.net/npm/tesseract.js-core@4.0.4/";
-  const TESS_LANG   = "https://tessdata.projectnaptha.com/4.0.0";
+  // Guard: Worker URL must be configured
+  if (!AI_WORKER_URL || AI_WORKER_URL === "COLE_AQUI_A_URL_DO_SEU_WORKER") {
+    progressText.textContent = "⚠ Worker URL não configurada. Contate o administrador do sistema.";
+    return;
+  }
 
   try {
-    const worker = await Tesseract.createWorker({
-      workerPath:    TESS_WORKER,
-      corePath:      TESS_CORE,
-      langPath:      TESS_LANG,
-      workerBlobURL: false,   // spawn Worker(url) directly — no importScripts blob wrapper
-      logger: (m) => {
-        const pct = Math.round((m.progress || 0) * 100);
-        if (m.status === "recognizing text") {
-          progressText.textContent = `Lendo imagem… ${pct}%`;
-        } else if (m.status === "loading language traineddata") {
-          progressText.textContent = pct < 100
-            ? `Baixando modelo… ${pct}% (só na 1ª vez)`
-            : "Modelo carregado ✓";
-        } else if (m.status === "loading tesseract core") {
-          progressText.textContent = "Carregando motor OCR…";
-        } else if (m.status === "initializing tesseract") {
-          progressText.textContent = "Inicializando…";
-        } else if (m.status === "initializing api") {
-          progressText.textContent = "Preparando…";
-        }
-      },
+    progressText.textContent = "Convertendo imagem…";
+
+    // Convert file to base64
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
     });
 
-    // v4 requires explicit loadLanguage + initialize before recognize
-    progressText.textContent = "Carregando idioma…";
-    await worker.loadLanguage("eng");
-    progressText.textContent = "Inicializando motor…";
-    await worker.initialize("eng");
-    progressText.textContent = "Processando imagem…";
-    const result = await worker.recognize(file);
-    await worker.terminate();
+    const mimeType = file.type || "image/png";
 
-    const rawText = result.data.text;
+    progressText.textContent = "Enviando para IA…";
+
+    const resp = await fetch(AI_WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image_base64: base64, mime_type: mimeType }),
+    });
+
+    if (!resp.ok) {
+      const errBody = await resp.json().catch(() => ({}));
+      throw new Error(errBody.error || `HTTP ${resp.status}`);
+    }
+
+    const data    = await resp.json();
+    const rawText = (data.result || "").trim();
+
     document.getElementById("ocr-raw-text").textContent = rawText;
     document.getElementById("ocr-raw-toggle").style.display = "block";
 
-    const ex = parseEpmText(rawText);
+    // Parse the JSON returned by the AI
+    let ex = { individuals: null, sqor: null, named: null, horizon: null };
+    try {
+      const clean = rawText.replace(/^```[a-z]*\n?/i, "").replace(/\n?```$/, "").trim();
+      ex = JSON.parse(clean);
+    } catch (_) {
+      ex = parseEpmText(rawText);
+    }
 
     // Helper: fill a field and mark it auto-filled
     function fill(id, val) {
       const el = document.getElementById(id);
-      if (val !== null) { el.value = val; el.classList.add("auto-filled"); }
-      else              { el.value = ""; el.classList.remove("auto-filled"); }
+      if (val !== null && val !== undefined) { el.value = val; el.classList.add("auto-filled"); }
+      else { el.value = ""; el.classList.remove("auto-filled"); }
     }
 
     fill("ocr-actual-ind",  ex.individuals);
@@ -1440,29 +1446,23 @@ async function handleOcrFile(file) {
     fill("ocr-named",       ex.named);
     fill("ocr-horizon",     ex.horizon);
 
-    // Trigger percentage calculation + delta
     syncOcrToFields();
 
-    progressEl.classList.remove("visible");
-
     const found = [
-      ex.individuals !== null ? `Attendees: ${ex.individuals}` : null,
-      ex.sqor        !== null ? `SQO: $${Number(ex.sqor).toLocaleString("en-US")}` : null,
-      ex.named       !== null ? `Named: ${ex.named}` : null,
-      ex.horizon     !== null ? `Horizon: ${ex.horizon}` : null,
+      ex.individuals != null ? `Attendees: ${ex.individuals}` : null,
+      ex.sqor        != null ? `SQO: $${Number(ex.sqor).toLocaleString("en-US")}` : null,
+      ex.named       != null ? `Named: ${ex.named}` : null,
+      ex.horizon     != null ? `Horizon: ${ex.horizon}` : null,
     ].filter(Boolean);
 
     progressText.textContent = found.length
-      ? `✓ Extraído: ${found.join("  ·  ")}`
-      : "⚠ Nenhum valor reconhecido — verifique os campos manualmente";
-    progressEl.classList.add("visible");
+      ? `✓ IA extraiu: ${found.join("  ·  ")}`
+      : "⚠ IA não reconheceu os valores — verifique os campos manualmente";
 
   } catch (err) {
-    // err may be a plain string or non-Error object from Tesseract internals
     const msg = (err && err.message) ? err.message : String(err);
-    progressText.textContent = "⚠ Erro no OCR: " + msg;
-    progressEl.classList.add("visible");
-    console.error("OCR error:", err);
+    progressText.textContent = "⚠ Erro na IA Vision: " + msg;
+    console.error("AI Vision error:", err);
   }
 }
 
