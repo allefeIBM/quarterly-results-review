@@ -624,14 +624,14 @@
     <li class="cds--progress-step cds--progress-step--current" id="progress-step-1">
       <button class="cds--progress-step__button" type="button">
         <span class="cds--progress-circle">1</span>
-        <span class="cds--progress-label">Selecionar Evento</span>
+        <span class="cds--progress-label">Select Event</span>
       </button>
       <div class="cds--progress-line"></div>
     </li>
     <li class="cds--progress-step cds--progress-step--inactive" id="progress-step-2">
       <button class="cds--progress-step__button" type="button">
         <span class="cds--progress-circle">2</span>
-        <span class="cds--progress-label">Gerar Apresentação</span>
+        <span class="cds--progress-label">Generate Presentation</span>
       </button>
     </li>
   </ol>
@@ -640,19 +640,19 @@
   <div class="cds--tile">
     <h2 class="cds--tile__heading">
       <svg width="20" height="20" viewBox="0 0 32 32" fill="currentColor"><path d="M16 2a14 14 0 100 28A14 14 0 0016 2zm0 6a4 4 0 110 8 4 4 0 010-8zm0 17a10 10 0 01-8-4c0-3 5.33-4.64 8-4.64S24 18 24 21a10 10 0 01-8 4z"/></svg>
-      Selecionar Evento
+      Select Event
     </h2>
 
     <!-- Search -->
     <div class="cds--form-item">
-      <label class="cds--label" for="event-search">Evento</label>
+      <label class="cds--label" for="event-search">Event</label>
       <div class="cds--search-wrap">
         <svg class="cds--search-icon" width="16" height="16" viewBox="0 0 32 32" fill="currentColor"><path d="M29 27.586l-7.552-7.552a11 11 0 10-1.414 1.414L27.586 29zM4 13a9 9 0 119 9 9.01 9.01 0 01-9-9z"/></svg>
         <input
           type="text"
           id="event-search"
           class="cds--search-input"
-          placeholder="Buscar por nome do evento ou código Brief…"
+          placeholder="Search by event name or Brief code…"
           autocomplete="off"
           spellcheck="false"
         />
@@ -671,7 +671,7 @@
           <div class="cds--selectable-tile__name" id="pill-name">—</div>
           <div class="cds--selectable-tile__meta" id="pill-meta">—</div>
         </div>
-        <button class="cds--selectable-tile__close" id="clear-event" title="Limpar seleção" aria-label="Remover evento selecionado">
+        <button class="cds--selectable-tile__close" id="clear-event" title="Clear selection" aria-label="Remove selected event">
           <!-- Close icon -->
           <svg width="16" height="16" viewBox="0 0 32 32" fill="currentColor"><path d="M24 9.4L22.6 8 16 14.6 9.4 8 8 9.4 14.6 16 8 22.6 9.4 24 16 17.4 22.6 24 24 22.6 17.4 16z"/></svg>
         </button>
@@ -680,7 +680,7 @@
       <!-- Metrics grid -->
       <div class="cds--grid-3" id="event-metrics">
         <div class="cds--form-item">
-          <label class="cds--label">Nome do Evento <span class="cds--label__helper">(Airtable)</span></label>
+          <label class="cds--label">Event Name <span class="cds--label__helper">(Airtable)</span></label>
           <div id="at-event-name" class="cds--display-field cds--display-field--empty" style="font-family:inherit;font-size:14px;font-weight:400;">—</div>
         </div>
         <div class="cds--form-item">
@@ -688,7 +688,7 @@
           <input type="number" id="input-expected-ind" class="cds--text-input" min="0" step="1" placeholder="—" oninput="updateDelta()"/>
         </div>
         <div class="cds--form-item">
-          <label class="cds--label" for="input-actual-ind">Actual Individuals <span class="cds--label__helper">(após o evento)</span></label>
+          <label class="cds--label" for="input-actual-ind">Actual Individuals <span class="cds--label__helper">(fill after the event)</span></label>
           <input type="number" id="input-actual-ind" class="cds--text-input" min="0" step="1" placeholder="—" oninput="updateDelta()"/>
         </div>
         <div class="cds--form-item">
@@ -703,7 +703,7 @@
       <hr class="cds--section-divider"/>
 
       <div class="cds--data-table-heading" style="margin-bottom:var(--cds-spacing-05);">
-        Resultados do Evento
+        Event Results
       </div>
 
       <!-- Result fields grid -->
@@ -725,11 +725,11 @@
           <input type="number" id="ocr-horizon" class="cds--text-input" min="0" step="1" placeholder="—" oninput="syncOcrToFields()"/>
         </div>
         <div class="cds--form-item">
-          <label class="cds--label">% Named Accounts <span class="cds--label__helper">(calculado)</span></label>
+          <label class="cds--label">% Named Accounts <span class="cds--label__helper">(calculated)</span></label>
           <div id="ocr-named-pct" class="cds--display-field cds--display-field--empty cds--display-field--computed">—</div>
         </div>
         <div class="cds--form-item">
-          <label class="cds--label">% Horizon Accounts <span class="cds--label__helper">(calculado)</span></label>
+          <label class="cds--label">% Horizon Accounts <span class="cds--label__helper">(calculated)</span></label>
           <div id="ocr-horizon-pct" class="cds--display-field cds--display-field--empty cds--display-field--computed">—</div>
         </div>
       </div>
@@ -741,7 +741,7 @@
             <span class="cds--accordion__title">
               <!-- AI / Machine Learning icon -->
               <svg width="16" height="16" viewBox="0 0 32 32" fill="currentColor"><path d="M22 16a6 6 0 00-4-5.66V4h-4v6.34A6 6 0 0010 16a6 6 0 004 5.66V28h4v-6.34A6 6 0 0022 16zm-6 4a4 4 0 110-8 4 4 0 010 8z"/><path d="M6 8H2V6h4zm0 4H2v-2h4zm0 4H2v-2h4zm0 4H2v-2h4zm0 4H2v-2h4zM30 8h-4V6h4zm0 4h-4v-2h4zm0 4h-4v-2h4zm0 4h-4v-2h4zm0 4h-4v-2h4z"/></svg>
-              Preencher automaticamente via IA Vision
+              Auto-fill via AI Vision
             </span>
             <svg class="cds--accordion__arrow" width="16" height="16" viewBox="0 0 32 32" fill="currentColor"><path d="M22 16L12 26l-1.4-1.4 8.6-8.6-8.6-8.6L12 6z"/></svg>
           </button>
@@ -750,20 +750,20 @@
               <input type="file" id="ocr-file-input" accept="image/*" onchange="handleOcrFile(this.files[0])"/>
               <svg class="cds--file-uploader__icon" width="24" height="24" viewBox="0 0 32 32" fill="currentColor"><path d="M26 24v4H6v-4H4v4a2 2 0 002 2h20a2 2 0 002-2v-4zm0-10l-1.4-1.4L17 20.2V2h-2v18.2l-7.6-7.6L6 14l10 10 10-10z" transform="scale(1,-1) translate(0,-32)"/><path d="M6 14l1.4 1.4L15 7.8V26h2V7.8l7.6 7.6L26 14 16 4z"/></svg>
               <p class="cds--file-uploader__text">
-                <span class="cds--file-uploader__link">Clique para fazer upload</span> ou arraste o screenshot do EPM
+                <span class="cds--file-uploader__link">Click to upload</span> or drag the EPM screenshot here
               </p>
-              <p class="cds--file-uploader__hint">PNG, JPG — a IA extrai os dados e preenche os campos</p>
+              <p class="cds--file-uploader__hint">PNG, JPG — AI will extract the data and fill the fields</p>
             </div>
-            <img id="ocr-preview-img" alt="Preview do screenshot"/>
+            <img id="ocr-preview-img" alt="Screenshot preview"/>
             <div class="cds--inline-notification" id="ocr-progress">
               <span class="cds--inline-notification__icon" id="ocr-progress-icon">
                 <div class="cds--loading"></div>
               </span>
               <div class="cds--inline-notification__content">
-                <span id="ocr-progress-text">Enviando para a IA…</span>
+                <span id="ocr-progress-text">Sending to AI…</span>
               </div>
             </div>
-            <div class="ocr-raw" id="ocr-raw-toggle" onclick="toggleOcrRaw()">Ver resposta bruta da IA</div>
+            <div class="ocr-raw" id="ocr-raw-toggle" onclick="toggleOcrRaw()">View raw AI response</div>
             <pre id="ocr-raw-text"></pre>
           </div>
         </div>
@@ -773,7 +773,7 @@
     <!-- KPI Table -->
     <div id="kpi-preview" style="display:none;">
       <hr class="cds--section-divider"/>
-      <div class="cds--data-table-heading">KPI Projections — planilhas carregadas</div>
+      <div class="cds--data-table-heading">KPI Projections — loaded from spreadsheets</div>
       <div class="cds--data-table-container">
         <table class="cds--data-table" id="kpi-table">
           <thead>
@@ -798,16 +798,16 @@
   <div class="cds--tile">
     <h2 class="cds--tile__heading">
       <svg width="20" height="20" viewBox="0 0 32 32" fill="currentColor"><path d="M26 6H6a2 2 0 00-2 2v20a2 2 0 002 2h20a2 2 0 002-2V8a2 2 0 00-2-2zm0 22H6V8h20zM14 21l-4-4 1.4-1.4L14 18.2l6.6-6.6L22 13z"/></svg>
-      Gerar Apresentação
+      Generate Presentation
     </h2>
     <p style="font-size:14px; color:var(--cds-text-secondary); margin-bottom:var(--cds-spacing-06); line-height:1.6;">
-      Preenche a tabela de KPIs no modelo <strong style="color:var(--cds-text-primary);">Quarterly Results Review Template_8.18.pptx</strong>
-      e faz o download do arquivo pronto.
-      O espaço para o screenshot do EPM será mantido no slide.
+      Fills the KPI table in the <strong style="color:var(--cds-text-primary);">Quarterly Results Review Template_8.18.pptx</strong>
+      template and downloads the ready file.
+      The EPM screenshot placeholder will be kept in the slide.
     </p>
-    <p class="cds--form__helper-text" style="margin-bottom:var(--cds-spacing-06);">Requer: planilhas carregadas + evento selecionado.</p>
+    <p class="cds--form__helper-text" style="margin-bottom:var(--cds-spacing-06);">Requires: spreadsheets loaded + event selected.</p>
     <button class="cds--btn cds--btn--primary" id="generate-btn" disabled onclick="generatePresentation()">
-      Gerar e Baixar Apresentação
+      Generate and Download Presentation
       <!-- ArrowRight icon -->
       <svg class="cds--btn__icon" width="16" height="16" viewBox="0 0 32 32" fill="currentColor"><path d="M18 6l-1.4 1.4 8.6 8.6H2v2h23.2l-8.6 8.6L18 28l11-11z"/></svg>
     </button>
@@ -819,13 +819,13 @@
 
 </main>
 
-<footer class="cds--footer">Quarterly Results Review Generator · IBM Field Marketing · 2026</footer>
+<footer class="cds--footer">Quarterly Results Review · IBM Field Marketing · 2026</footer>
 
 <!-- Loading overlay -->
 <div id="loading-overlay">
   <div class="cds--loading-overlay__box">
     <div class="cds--loading cds--loading--lg"></div>
-    <p id="overlay-text">Processando…</p>
+    <p id="overlay-text">Processing…</p>
   </div>
 </div>
 
@@ -833,23 +833,23 @@
 <div class="cds--modal-container-bg" id="api-modal">
   <div class="cds--modal-container">
     <div class="cds--modal-header">
-      <p class="cds--modal-header__label">Integração</p>
-      <h2 class="cds--modal-header__heading">Configurar Airtable</h2>
+      <p class="cds--modal-header__label">Integration</p>
+      <h2 class="cds--modal-header__heading">Configure Airtable</h2>
     </div>
     <div class="cds--modal-content">
-      Insira seu <strong>Personal Access Token</strong> do Airtable uma única vez. Ele será salvo localmente no seu navegador.<br><br>
-      <strong>Deixe em branco</strong> para usar o app sem integração Airtable.
+      Enter your Airtable <strong>Personal Access Token</strong> once. It will be saved locally in your browser.<br><br>
+      <strong>Leave blank</strong> to use the app without Airtable integration.
     </div>
     <div class="cds--form-item">
       <label class="cds--label" for="at-token">Personal Access Token
-        <a href="https://airtable.com/create/tokens/new" target="_blank" rel="noopener noreferrer" style="font-weight:400;font-size:11px;color:var(--cds-interactive);margin-left:6px;text-transform:none;letter-spacing:normal;">Criar token →</a>
+        <a href="https://airtable.com/create/tokens/new" target="_blank" rel="noopener noreferrer" style="font-weight:400;font-size:11px;color:var(--cds-interactive);margin-left:6px;text-transform:none;letter-spacing:normal;">Create token →</a>
       </label>
       <input type="password" id="at-token" class="cds--text-input" placeholder="patXXXXXXXXXXXXXX" autocomplete="off" style="margin-bottom:var(--cds-spacing-05);"/>
     </div>
     <div class="cds--modal-err" id="modal-err"></div>
     <div class="cds--modal-footer">
-      <button class="cds--btn cds--btn--primary cds--btn--sm" onclick="saveApiSettings()">Salvar e Continuar</button>
-      <button class="cds--btn cds--btn--ghost cds--btn--sm" onclick="skipApiSettings()">Pular por agora</button>
+      <button class="cds--btn cds--btn--primary cds--btn--sm" onclick="saveApiSettings()">Save and Continue</button>
+      <button class="cds--btn cds--btn--ghost cds--btn--sm" onclick="skipApiSettings()">Skip for now</button>
     </div>
   </div>
 </div>
@@ -945,12 +945,12 @@ function setDataStatus(type, html) {
 async function loadFromDataJson() {
   try {
     const resp = await fetch("data.json");
-    if (!resp.ok) throw new Error(`HTTP ${resp.status} ao buscar data.json`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching data.json`);
 
     const payload = await resp.json();
 
     if (!payload.events || typeof payload.events !== "object") {
-      throw new Error("data.json inválido — campo 'events' não encontrado");
+      throw new Error("Invalid data.json — 'events' field not found");
     }
 
     for (const [key, ev] of Object.entries(payload.events)) {
@@ -977,12 +977,12 @@ async function loadFromDataJson() {
   } catch (e) {
     dataReady = true; // unblock the search even on error (will show "no results")
     setDataStatus("error",
-      `⚠ Erro ao carregar dados: <strong>${e.message}</strong>. Recarregue a página.`
+      `⚠ Error loading data: <strong>${e.message}</strong>. Please reload the page.`
     );
     // If user already typed, update the dropdown to show the error
     const currentQuery = searchInput.value.trim();
     if (currentQuery.length >= 2) {
-      dropdown.innerHTML = `<div class="cds--dropdown-empty">⚠ Falha ao carregar dados. Recarregue a página.</div>`;
+      dropdown.innerHTML = `<div class="cds--dropdown-empty">⚠ Failed to load data. Please reload the page.</div>`;
       dropdown.classList.add("open");
     }
   }
@@ -1074,17 +1074,17 @@ async function boxDownloadXlsx(fileId, fileName, token) {
 }
 
 async function loadFromBox(token) {
-  showOverlay("Conectando ao Box e carregando planilhas…");
+  showOverlay("Connecting to Box and loading spreadsheets…");
   try {
     const files = await boxListXlsx(BOX_FOLDER_ID, token);
     if (!files.length) {
       hideOverlay();
-      setStatus("error", "⚠ Nenhum arquivo .xlsx encontrado na pasta do Box.");
+      setStatus("error", "⚠ No .xlsx files found in the Box folder.");
       return;
     }
 
     for (let i = 0; i < files.length; i++) {
-      showOverlay(`Carregando planilha ${i + 1} de ${files.length}: ${files[i].name}…`);
+      showOverlay(`Loading spreadsheet ${i + 1} of ${files.length}: ${files[i].name}…`);
       try {
         await boxDownloadXlsx(files[i].id, files[i].name, token);
       } catch (e) {
@@ -1095,16 +1095,16 @@ async function loadFromBox(token) {
     hideOverlay();
     renderFileChips();
     rebuildSearchIndex();
-    setStatus("info", `✓ ${Object.keys(allEvents).length} evento(s) carregado(s) de ${files.length} planilha(s) do Box.`);
+    setStatus("info", `✓ ${Object.keys(allEvents).length} event(s) loaded from ${files.length} Box spreadsheet(s).`);
     setTimeout(clearStatus, 6000);
   } catch (e) {
     hideOverlay();
     // Token may have expired
     if (e.message.includes("401") || e.message.includes("403")) {
       boxDisconnect();
-      setStatus("error", "⚠ Sessão do Box expirada. Clique em 'Conectar ao Box' para autenticar novamente.");
+      setStatus("error", "⚠ Box session expired. Click 'Connect to Box' to authenticate again.");
     } else {
-      setStatus("error", "⚠ Erro ao carregar planilhas do Box: " + e.message);
+      setStatus("error", "⚠ Error loading Box spreadsheets: " + e.message);
     }
   }
 }
@@ -1415,7 +1415,7 @@ function onSearch() {
 
   // While data.json is still loading, show a spinner and wait
   if (!dataReady) {
-    dropdown.innerHTML = `<div class="cds--dropdown-empty">⏳ Carregando lista de eventos… aguarde um momento.</div>`;
+    dropdown.innerHTML = `<div class="cds--dropdown-empty">⏳ Loading events list… please wait.</div>`;
     dropdown.classList.add("open");
     return;
   }
@@ -1447,8 +1447,8 @@ function renderDropdown(matches, q, loading = false) {
   focusedIdx = -1;
   if (!matches || !matches.length) {
     dropdown.innerHTML = loading
-      ? `<div class="cds--dropdown-empty">Buscando…</div>`
-      : `<div class="cds--dropdown-empty">Nenhum evento encontrado para "${escHtml(q)}"</div>`;
+      ? `<div class="cds--dropdown-empty">Searching…</div>`
+      : `<div class="cds--dropdown-empty">No events found for "${escHtml(q)}"</div>`;
     dropdown.classList.add("open");
     return;
   }
@@ -1489,11 +1489,11 @@ async function selectEvent(ev) {
   searchInput.value = ev.brief;
   selectedEvent = null;
 
-  showOverlay(`Carregando KPIs de ${ev.event_name}…`);
+  showOverlay(`Loading KPIs for ${ev.event_name}…`);
   try {
     const key = ev.brief.toUpperCase();
     const eventData = allEvents[key];
-    if (!eventData) throw new Error("Evento não encontrado na memória");
+    if (!eventData) throw new Error("Event not found in memory");
 
     // Try to enrich with Airtable data
     const atData = await fetchAirtableForBrief(ev.brief);
@@ -1508,7 +1508,7 @@ async function selectEvent(ev) {
     renderSelectedEvent(selectedEvent);
   } catch (e) {
     hideOverlay();
-    setStatus("error", "Erro ao carregar detalhes do evento: " + e.message);
+    setStatus("error", "Error loading event details: " + e.message);
   }
 }
 
@@ -1516,9 +1516,9 @@ function renderSelectedEvent(ev) {
   document.getElementById("pill-name").textContent = ev.event_name;
   const rows    = ev.kpi_rows || [];
   const sources = [...new Set(rows.map(r => r.source_file))];
-  const atInfo  = ev.event_date ? ` · Data: ${ev.event_date}` : "";
+  const atInfo  = ev.event_date ? ` · Date: ${ev.event_date}` : "";
   document.getElementById("pill-meta").textContent =
-    `Brief: ${ev.brief}  ·  ${rows.length} KPI row(s) · ${sources.length} arquivo(s)${atInfo}`;
+    `Brief: ${ev.brief}  ·  ${rows.length} KPI row(s) · ${sources.length} file(s)${atInfo}`;
   document.getElementById("selected-event-info").style.display = "block";
   document.getElementById("ocr-section").style.display = "block";
 
@@ -1688,7 +1688,7 @@ async function handleOcrFile(file) {
   }
 
   try {
-    progressText.textContent = "Convertendo imagem…";
+    progressText.textContent = "Converting image…";
 
     // Convert file to base64
     const base64 = await new Promise((resolve, reject) => {
@@ -1700,7 +1700,7 @@ async function handleOcrFile(file) {
 
     const mimeType = file.type || "image/png";
 
-    progressText.textContent = "Enviando para IA…";
+    progressText.textContent = "Sending to AI…";
 
     const resp = await fetch(AI_WORKER_URL, {
       method: "POST",
@@ -1792,18 +1792,18 @@ async function handleOcrFile(file) {
     if (found.length) {
       progressEl.classList.remove("cds--inline-notification--info","cds--inline-notification--error");
       progressEl.classList.add("cds--inline-notification--success");
-      progressText.textContent = `IA extraiu: ${found.join("  ·  ")}`;
+      progressText.textContent = `AI extracted: ${found.join("  ·  ")}`;
     } else {
       progressEl.classList.remove("cds--inline-notification--info","cds--inline-notification--success");
       progressEl.classList.add("cds--inline-notification--error");
-      progressText.textContent = "IA não reconheceu os valores — verifique os campos manualmente";
+      progressText.textContent = "AI could not recognize values — please fill the fields manually";
     }
 
   } catch (err) {
     const msg = (err && err.message) ? err.message : String(err);
     progressEl.classList.remove("cds--inline-notification--info","cds--inline-notification--success");
     progressEl.classList.add("cds--inline-notification--error");
-    progressText.textContent = "Erro na IA Vision: " + msg;
+    progressText.textContent = "AI Vision error: " + msg;
     console.error("AI Vision error:", err);
   }
 }
@@ -1945,7 +1945,7 @@ async function generatePresentation() {
 
   const btn = document.getElementById("generate-btn");
   btn.disabled = true;
-  setStatus("info", "Gerando apresentação…", true);
+  setStatus("info", "Generating presentation…", true);
 
   try {
     const pptx = new PptxGenJS();
@@ -1957,9 +1957,9 @@ async function generatePresentation() {
     const filename = `${safe}_${selectedEvent.brief}_Results.pptx`;
 
     await pptx.writeFile({ fileName: filename });
-    setStatus("ok", `✓ "${filename}" baixado. Abra no PowerPoint para adicionar o screenshot do EPM e finalizar.`);
+    setStatus("ok", `✓ "${filename}" downloaded. Open in PowerPoint to add the EPM screenshot and finalize.`);
   } catch (e) {
-    setStatus("error", "⚠ Erro ao gerar apresentação: " + e.message);
+    setStatus("error", "⚠ Error generating presentation: " + e.message);
     console.error(e);
   } finally {
     btn.disabled = !selectedEvent;
