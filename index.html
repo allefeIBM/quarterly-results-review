@@ -4,6 +4,9 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Quarterly Results Review — Presentation Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap" rel="stylesheet"/>
 
   <!-- SheetJS (read XLSX client-side) -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
@@ -11,492 +14,768 @@
   <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
 
   <style>
+    /* ── Carbon Design System tokens (White theme) ───────────── */
+    :root {
+      --cds-background:          #ffffff;
+      --cds-layer-01:            #f4f4f4;
+      --cds-layer-02:            #e0e0e0;
+      --cds-border-subtle:       #e0e0e0;
+      --cds-border-strong:       #8d8d8d;
+      --cds-text-primary:        #161616;
+      --cds-text-secondary:      #525252;
+      --cds-text-placeholder:    #a8a8a8;
+      --cds-text-disabled:       #c6c6c6;
+      --cds-text-inverse:        #ffffff;
+      --cds-button-primary:      #0f62fe;
+      --cds-button-primary-hover:#0353e9;
+      --cds-button-disabled:     #c6c6c6;
+      --cds-focus:               #0f62fe;
+      --cds-support-success:     #24a148;
+      --cds-support-error:       #da1e28;
+      --cds-support-warning:     #f1c21b;
+      --cds-support-info:        #0043ce;
+      --cds-notification-success-bg: #defbe6;
+      --cds-notification-error-bg:   #fff1f1;
+      --cds-notification-info-bg:    #edf5ff;
+      --cds-interactive:         #0f62fe;
+      --cds-highlight:           #d0e2ff;
+      --cds-field-01:            #f4f4f4;
+      --cds-field-02:            #ffffff;
+      --cds-ui-shell-bg:         #161616;
+      --cds-spacing-01: 2px;
+      --cds-spacing-02: 4px;
+      --cds-spacing-03: 8px;
+      --cds-spacing-04: 12px;
+      --cds-spacing-05: 16px;
+      --cds-spacing-06: 24px;
+      --cds-spacing-07: 32px;
+      --cds-spacing-08: 40px;
+      --cds-spacing-09: 48px;
+      --cds-spacing-10: 64px;
+    }
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: "IBM Plex Sans", -apple-system, "Segoe UI", system-ui, sans-serif;
-      background: #f4f4f4;
-      color: #161616;
+      background: var(--cds-layer-01);
+      color: var(--cds-text-primary);
+      font-size: 14px;
+      line-height: 1.5;
       min-height: 100vh;
     }
 
-    /* ── Header ─────────────────────────────────────────────── */
-    header {
-      background: #161616;
-      color: #fff;
-      padding: 16px 32px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-    header svg { flex-shrink: 0; }
-    header h1 { font-size: 18px; font-weight: 400; letter-spacing: .01em; }
-    header .sub { font-size: 12px; color: #8d8d8d; margin-top: 2px; }
-    .header-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-    .header-btn {
-      background: none; border: 1px solid #525252; color: #c6c6c6;
-      padding: 6px 14px; font-size: 12px; font-family: inherit;
-      cursor: pointer; transition: border-color .15s, color .15s;
-    }
-    .header-btn:hover { border-color: #f4f4f4; color: #f4f4f4; }
-
-    /* ── Main layout ─────────────────────────────────────────── */
-    main { max-width: 900px; margin: 40px auto; padding: 0 24px; }
-
-    /* ── Card ────────────────────────────────────────────────── */
-    .card {
-      background: #fff;
-      border: 1px solid #e0e0e0;
-      padding: 32px;
-      margin-bottom: 24px;
-    }
-    .card h2 {
-      font-size: 16px; font-weight: 600;
-      margin-bottom: 20px; padding-bottom: 12px;
-      border-bottom: 2px solid #0f62fe;
-      color: #161616;
-      display: flex; align-items: center;
-    }
-
-    /* ── Step badges ─────────────────────────────────────────── */
-    .step-badge {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 24px; height: 24px;
-      background: #0f62fe; color: #fff;
-      font-size: 12px; font-weight: 600;
-      border-radius: 50%; margin-right: 8px; flex-shrink: 0;
-    }
-
-    /* ── Search field ────────────────────────────────────────── */
-    .search-wrap { position: relative; }
-    .search-wrap input {
-      width: 100%; padding: 12px 16px;
-      border: 1px solid #8d8d8d;
-      font-size: 14px; font-family: inherit;
-      background: #fff; outline: none; transition: border-color .15s;
-    }
-    .search-wrap input:focus { border-color: #0f62fe; box-shadow: 0 0 0 2px #0f62fe33; }
-
-    .dropdown {
-      position: absolute; top: calc(100% + 2px); left: 0; right: 0;
-      background: #fff; border: 1px solid #8d8d8d;
-      max-height: 280px; overflow-y: auto; z-index: 100; display: none;
-    }
-    .dropdown.open { display: block; }
-    .dropdown-item {
-      padding: 10px 16px; cursor: pointer; font-size: 13px;
-      border-bottom: 1px solid #f4f4f4;
-      display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
-    }
-    .dropdown-item:hover, .dropdown-item.focused { background: #e8f0fd; }
-    .dropdown-item .ev-name { font-size: 13px; color: #161616; flex: 1; }
-    .dropdown-item .ev-brief {
-      font-size: 11px; color: #525252;
-      font-family: "IBM Plex Mono", monospace;
-      white-space: nowrap; background: #f4f4f4;
-      padding: 2px 6px; border-radius: 2px;
-    }
-    .dropdown-item mark { background: #fff3cd; padding: 0; }
-    .dropdown-empty { padding: 14px 16px; font-size: 13px; color: #6f6f6f; text-align: center; }
-
-    /* ── Selected event pill ─────────────────────────────────── */
-    #selected-event-info { margin-top: 16px; display: none; }
-    .event-pill {
-      background: #e8f0fd; border: 1px solid #0f62fe;
-      padding: 12px 16px; display: flex; align-items: center; gap: 12px;
-    }
-    .event-pill .ev-icon {
-      width: 36px; height: 36px; background: #0f62fe;
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-    }
-    .event-pill .ev-details { flex: 1; }
-    .event-pill .ev-details .name { font-size: 14px; font-weight: 600; }
-    .event-pill .ev-details .meta { font-size: 12px; color: #525252; margin-top: 2px; }
-    .event-pill .clear-btn {
-      background: none; border: none; cursor: pointer;
-      color: #525252; font-size: 18px; padding: 4px;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .event-pill .clear-btn:hover { color: #da1e28; }
-
-    /* ── KPI preview table ───────────────────────────────────── */
-    #kpi-preview { margin-top: 20px; display: none; }
-    #kpi-preview h3 {
-      font-size: 13px; font-weight: 600; color: #525252;
-      text-transform: uppercase; letter-spacing: .05em; margin-bottom: 10px;
-    }
-    .kpi-table-wrap { overflow-x: auto; }
-    .kpi-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    .kpi-table th {
-      background: #161616; color: #fff; padding: 8px 10px;
-      text-align: left; font-weight: 600; white-space: nowrap;
-    }
-    .kpi-table th.num { text-align: right; }
-    .kpi-table td { padding: 7px 10px; border-bottom: 1px solid #f4f4f4; }
-    .kpi-table td.num { text-align: right; font-family: "IBM Plex Mono", monospace; }
-    .kpi-table tr:nth-child(even) td { background: #f9f9f9; }
-    .kpi-table tr:hover td { background: #e8f0fd; }
-    .kpi-table .total-col { font-weight: 600; color: #0f62fe; }
-
-    /* ── XLSX Upload card ────────────────────────────────────── */
-    .upload-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 12px; margin-top: 4px;
-    }
-    .file-chip {
-      display: flex; align-items: center; gap: 8px;
-      padding: 8px 12px; border: 1px solid #e0e0e0;
-      font-size: 12px; background: #f9f9f9;
-    }
-    .file-chip .fc-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: #8d8d8d; flex-shrink: 0;
-    }
-    .file-chip.loaded .fc-dot { background: #24a148; }
-    .file-chip .fc-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .file-chip .fc-count { font-size: 11px; color: #525252; white-space: nowrap; }
-
-    /* ── Drop zone for XLSX files ────────────────────────────── */
-    .drop-zone {
-      border: 2px dashed #8d8d8d; padding: 28px;
-      text-align: center; cursor: pointer;
-      transition: border-color .15s, background .15s;
-      position: relative; margin-bottom: 16px;
-    }
-    .drop-zone:hover, .drop-zone.dragover { border-color: #0f62fe; background: #e8f0fd; }
-    .drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-    .drop-zone .dz-icon { font-size: 28px; margin-bottom: 6px; color: #8d8d8d; }
-    .drop-zone .dz-text { font-size: 14px; color: #525252; }
-    .drop-zone .dz-hint { font-size: 12px; color: #8d8d8d; margin-top: 4px; }
-
-    /* ── Generate button ─────────────────────────────────────── */
-    .generate-section { margin-top: 8px; }
-    .generate-btn {
-      background: #0f62fe; color: #fff;
-      border: none; padding: 14px 32px;
-      font-size: 15px; font-family: inherit; font-weight: 600;
-      cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
-      transition: background .15s;
-    }
-    .generate-btn:hover:not(:disabled) { background: #0353e9; }
-    .generate-btn:disabled { background: #8d8d8d; cursor: not-allowed; }
-
-    /* ── Status / progress ───────────────────────────────────── */
-    .status-bar {
-      margin-top: 16px; padding: 12px 16px;
-      font-size: 13px; display: none;
-      align-items: center; gap: 10px;
-    }
-    .status-bar.info  { background: #e8f0fd; border-left: 4px solid #0f62fe; display: flex; }
-    .status-bar.ok    { background: #defbe6; border-left: 4px solid #24a148; display: flex; }
-    .status-bar.error { background: #fff1f1; border-left: 4px solid #da1e28; display: flex; }
-
-    .spinner {
-      width: 18px; height: 18px;
-      border: 2px solid #0f62fe44; border-top-color: #0f62fe;
-      border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0;
-    }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Modal overlay ───────────────────────────────────────── */
-    .modal-backdrop {
+    /* ── UI Shell Header ─────────────────────────────────────── */
+    .cds--header {
+      background: var(--cds-ui-shell-bg);
+      color: var(--cds-text-inverse);
+      height: 48px;
+      display: flex;
+      align-items: center;
+      padding: 0 var(--cds-spacing-05);
+      position: sticky; top: 0; z-index: 200;
+      border-bottom: 1px solid #393939;
+    }
+    .cds--header__logo {
+      display: flex; align-items: center;
+      padding-right: var(--cds-spacing-05);
+      border-right: 1px solid #393939;
+      flex-shrink: 0;
+    }
+    .cds--header__name {
+      font-size: 14px; font-weight: 400;
+      color: var(--cds-text-inverse);
+      padding: 0 var(--cds-spacing-05);
+      letter-spacing: 0.1px;
+      white-space: nowrap;
+    }
+    .cds--header__actions {
+      margin-left: auto;
+      display: flex; align-items: center;
+    }
+    .cds--header__action {
+      background: none; border: none;
+      color: #c6c6c6;
+      height: 48px; padding: 0 var(--cds-spacing-05);
+      font-size: 14px; font-family: inherit;
+      cursor: pointer;
+      display: flex; align-items: center; gap: var(--cds-spacing-02);
+      transition: background .15s, color .15s;
+      white-space: nowrap;
+    }
+    .cds--header__action:hover { background: #2d2d2d; color: #f4f4f4; }
+    .cds--header__action svg { flex-shrink: 0; }
+
+    /* ── Progress Indicator ──────────────────────────────────── */
+    .cds--progress {
+      display: flex; align-items: flex-start;
+      gap: 0; margin-bottom: var(--cds-spacing-07);
+      padding: 0;
+      list-style: none;
+    }
+    .cds--progress-step {
+      display: flex; align-items: center; flex: 1;
+    }
+    .cds--progress-step:last-child { flex: 0; }
+    .cds--progress-step__button {
+      display: flex; align-items: center; gap: var(--cds-spacing-03);
+      background: none; border: none; cursor: default;
+      padding: 0; font-family: inherit;
+    }
+    .cds--progress-circle {
+      width: 24px; height: 24px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 600; flex-shrink: 0;
+      border: 2px solid var(--cds-border-strong);
+      color: var(--cds-text-secondary);
+      background: var(--cds-background);
+    }
+    .cds--progress-step--current .cds--progress-circle {
+      background: var(--cds-button-primary);
+      border-color: var(--cds-button-primary);
+      color: #fff;
+    }
+    .cds--progress-step--complete .cds--progress-circle {
+      background: var(--cds-support-success);
+      border-color: var(--cds-support-success);
+      color: #fff;
+    }
+    .cds--progress-label {
+      font-size: 14px; font-weight: 600;
+      color: var(--cds-text-primary);
+      white-space: nowrap;
+    }
+    .cds--progress-step--inactive .cds--progress-label {
+      color: var(--cds-text-secondary);
+    }
+    .cds--progress-line {
+      flex: 1; height: 1px;
+      background: var(--cds-border-subtle);
+      margin: 0 var(--cds-spacing-03);
+      position: relative; top: -11px;
+      min-width: 24px;
+    }
+
+    /* ── Main layout ─────────────────────────────────────────── */
+    main {
+      max-width: 1056px;
+      margin: 0 auto;
+      padding: var(--cds-spacing-07) var(--cds-spacing-07);
+    }
+
+    /* ── Tile (Card) ─────────────────────────────────────────── */
+    .cds--tile {
+      background: var(--cds-background);
+      border: 1px solid var(--cds-border-subtle);
+      padding: var(--cds-spacing-07);
+      margin-bottom: var(--cds-spacing-06);
+    }
+    .cds--tile__heading {
+      font-size: 20px; font-weight: 600;
+      color: var(--cds-text-primary);
+      margin-bottom: var(--cds-spacing-06);
+      padding-bottom: var(--cds-spacing-04);
+      border-bottom: 1px solid var(--cds-border-subtle);
+      display: flex; align-items: center; gap: var(--cds-spacing-03);
+    }
+    .cds--tile__heading svg { flex-shrink: 0; }
+
+    /* ── Text Input / Number Input ───────────────────────────── */
+    .cds--form-item { margin-bottom: var(--cds-spacing-06); }
+    .cds--label {
+      display: block;
+      font-size: 12px; font-weight: 600;
+      color: var(--cds-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.32px;
+      margin-bottom: var(--cds-spacing-02);
+    }
+    .cds--label__helper {
+      font-size: 11px; font-weight: 400;
+      text-transform: none; letter-spacing: normal;
+      color: var(--cds-text-placeholder);
+      margin-left: var(--cds-spacing-02);
+    }
+    .cds--text-input, .cds--number input {
+      width: 100%;
+      height: 40px;
+      padding: 0 var(--cds-spacing-04);
+      background: var(--cds-field-01);
+      border: none;
+      border-bottom: 1px solid var(--cds-border-strong);
+      color: var(--cds-text-primary);
+      font-size: 14px; font-family: inherit;
+      outline: none;
+      transition: background .15s, border-color .15s;
+      -moz-appearance: textfield;
+    }
+    .cds--text-input::-webkit-outer-spin-button,
+    .cds--text-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .cds--text-input:focus, .cds--number input:focus {
+      background: var(--cds-field-02);
+      border-bottom-color: var(--cds-focus);
+      box-shadow: 0 2px 0 0 var(--cds-focus);
+      outline: none;
+    }
+    .cds--text-input::placeholder { color: var(--cds-text-placeholder); }
+    .cds--text-input--readonly, .cds--text-input[readonly] {
+      background: var(--cds-layer-01);
+      border-bottom-color: var(--cds-border-subtle);
+      color: var(--cds-text-primary);
+      cursor: default;
+    }
+    .cds--text-input.auto-filled {
+      border-bottom-color: var(--cds-support-success);
+      background: #f0faf2;
+    }
+
+    /* ── Computed / read-only display field ──────────────────── */
+    .cds--display-field {
+      height: 40px; padding: 0 var(--cds-spacing-04);
+      background: var(--cds-layer-01);
+      border-bottom: 1px solid var(--cds-border-subtle);
+      font-size: 14px; font-weight: 600;
+      display: flex; align-items: center;
+      color: var(--cds-text-primary);
+      font-family: "IBM Plex Mono", monospace;
+    }
+    .cds--display-field.cds--display-field--positive { color: var(--cds-support-success); }
+    .cds--display-field.cds--display-field--negative { color: var(--cds-support-error); }
+    .cds--display-field.cds--display-field--computed { color: var(--cds-interactive); }
+    .cds--display-field.cds--display-field--empty { color: var(--cds-text-placeholder); font-weight: 400; font-family: inherit; }
+
+    /* ── Grid ────────────────────────────────────────────────── */
+    .cds--grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--cds-spacing-05); }
+    .cds--grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--cds-spacing-05); }
+    .cds--col-span-2 { grid-column: 1 / 3; }
+
+    /* ── Selectable Tile (selected event) ────────────────────── */
+    .cds--selectable-tile {
+      background: var(--cds-highlight);
+      border: 1px solid var(--cds-interactive);
+      padding: var(--cds-spacing-04) var(--cds-spacing-05);
+      display: flex; align-items: center; gap: var(--cds-spacing-04);
+      margin-top: var(--cds-spacing-05);
+      margin-bottom: var(--cds-spacing-06);
+    }
+    .cds--selectable-tile__icon {
+      width: 32px; height: 32px;
+      background: var(--cds-interactive);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .cds--selectable-tile__body { flex: 1; min-width: 0; }
+    .cds--selectable-tile__name {
+      font-size: 14px; font-weight: 600;
+      color: var(--cds-text-primary);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .cds--selectable-tile__meta {
+      font-size: 12px; color: var(--cds-text-secondary);
+      margin-top: var(--cds-spacing-01);
+      font-family: "IBM Plex Mono", monospace;
+    }
+    .cds--selectable-tile__close {
+      background: none; border: none; cursor: pointer;
+      color: var(--cds-text-secondary);
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: color .15s, background .15s;
+    }
+    .cds--selectable-tile__close:hover { color: var(--cds-support-error); background: #fff1f1; }
+
+    /* ── Combobox / Search ───────────────────────────────────── */
+    .cds--search-wrap { position: relative; }
+    .cds--search-input {
+      width: 100%; height: 40px;
+      padding: 0 var(--cds-spacing-09) 0 40px;
+      background: var(--cds-field-01);
+      border: none; border-bottom: 1px solid var(--cds-border-strong);
+      color: var(--cds-text-primary);
+      font-size: 14px; font-family: inherit;
+      outline: none; transition: background .15s, box-shadow .15s;
+    }
+    .cds--search-input:focus {
+      background: var(--cds-field-02);
+      border-bottom-color: var(--cds-focus);
+      box-shadow: 0 2px 0 0 var(--cds-focus);
+    }
+    .cds--search-input::placeholder { color: var(--cds-text-placeholder); }
+    .cds--search-icon {
+      position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+      color: var(--cds-text-secondary); pointer-events: none;
+    }
+    .cds--dropdown {
+      position: absolute; top: calc(100% + 1px); left: 0; right: 0;
+      background: var(--cds-background);
+      border: 1px solid var(--cds-border-strong);
+      max-height: 288px; overflow-y: auto; z-index: 100; display: none;
+      box-shadow: 0 4px 8px #00000026;
+    }
+    .cds--dropdown.open { display: block; }
+    .cds--dropdown-item {
+      padding: var(--cds-spacing-03) var(--cds-spacing-05);
+      cursor: pointer; font-size: 14px;
+      border-bottom: 1px solid var(--cds-border-subtle);
+      display: flex; justify-content: space-between;
+      align-items: center; gap: var(--cds-spacing-04);
+      transition: background .1s;
+    }
+    .cds--dropdown-item:hover, .cds--dropdown-item.focused { background: var(--cds-highlight); }
+    .cds--dropdown-item__name { flex: 1; color: var(--cds-text-primary); }
+    .cds--dropdown-item__tag {
+      font-size: 11px; color: var(--cds-text-secondary);
+      font-family: "IBM Plex Mono", monospace;
+      background: var(--cds-layer-01);
+      padding: 2px 6px;
+      white-space: nowrap;
+    }
+    .cds--dropdown-item mark { background: #fff3cd; padding: 0; border-radius: 0; }
+    .cds--dropdown-empty {
+      padding: var(--cds-spacing-05) var(--cds-spacing-05);
+      font-size: 14px; color: var(--cds-text-secondary); text-align: center;
+    }
+
+    /* ── Accordion ───────────────────────────────────────────── */
+    .cds--accordion { border-top: 1px solid var(--cds-border-subtle); }
+    .cds--accordion__item { border-bottom: 1px solid var(--cds-border-subtle); }
+    .cds--accordion__heading {
+      display: flex; align-items: center; justify-content: space-between;
+      width: 100%; background: none; border: none;
+      padding: var(--cds-spacing-04) 0;
+      cursor: pointer; font-family: inherit;
+      transition: background .15s;
+    }
+    .cds--accordion__heading:hover { background: var(--cds-layer-01); padding-left: var(--cds-spacing-03); padding-right: var(--cds-spacing-03); margin: 0 calc(-1 * var(--cds-spacing-03)); width: calc(100% + var(--cds-spacing-06)); }
+    .cds--accordion__title {
+      font-size: 14px; font-weight: 600;
+      color: var(--cds-text-primary);
+      display: flex; align-items: center; gap: var(--cds-spacing-03);
+    }
+    .cds--accordion__arrow {
+      flex-shrink: 0; transition: transform .15s;
+      color: var(--cds-text-secondary);
+    }
+    .cds--accordion__item--active .cds--accordion__arrow { transform: rotate(90deg); }
+    .cds--accordion__content { display: none; padding: var(--cds-spacing-05) 0 var(--cds-spacing-06); }
+    .cds--accordion__item--active .cds--accordion__content { display: block; }
+
+    /* ── File Uploader ───────────────────────────────────────── */
+    .cds--file-uploader {
+      border: 1px dashed var(--cds-border-strong);
+      background: var(--cds-field-01);
+      padding: var(--cds-spacing-07) var(--cds-spacing-06);
+      text-align: center; cursor: pointer;
+      position: relative;
+      transition: border-color .15s, background .15s;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      min-height: 96px;
+    }
+    .cds--file-uploader:hover,
+    .cds--file-uploader.dragover {
+      border-color: var(--cds-focus);
+      background: var(--cds-highlight);
+    }
+    .cds--file-uploader.has-image {
+      border-color: var(--cds-support-success);
+      border-style: solid;
+      background: #f0faf2;
+    }
+    .cds--file-uploader input[type=file] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .cds--file-uploader__icon { color: var(--cds-text-secondary); margin-bottom: var(--cds-spacing-03); }
+    .cds--file-uploader__text { font-size: 14px; color: var(--cds-text-secondary); }
+    .cds--file-uploader__hint { font-size: 12px; color: var(--cds-text-placeholder); margin-top: var(--cds-spacing-01); }
+    .cds--file-uploader__link { color: var(--cds-interactive); text-decoration: underline; }
+
+    /* ── Inline Notification ─────────────────────────────────── */
+    .cds--inline-notification {
+      display: none; align-items: flex-start; gap: var(--cds-spacing-03);
+      padding: var(--cds-spacing-04) var(--cds-spacing-05);
+      margin-top: var(--cds-spacing-05);
+      border-left: 3px solid;
+      font-size: 14px;
+    }
+    .cds--inline-notification.visible { display: flex; }
+    .cds--inline-notification--info {
+      background: var(--cds-notification-info-bg);
+      border-left-color: var(--cds-support-info);
+    }
+    .cds--inline-notification--success {
+      background: var(--cds-notification-success-bg);
+      border-left-color: var(--cds-support-success);
+    }
+    .cds--inline-notification--error {
+      background: var(--cds-notification-error-bg);
+      border-left-color: var(--cds-support-error);
+    }
+    .cds--inline-notification__icon { flex-shrink: 0; margin-top: 1px; }
+    .cds--inline-notification__content { flex: 1; line-height: 1.5; }
+    .cds--inline-notification__title { font-weight: 600; }
+
+    /* ── Spinner ─────────────────────────────────────────────── */
+    .cds--loading {
+      width: 16px; height: 16px; flex-shrink: 0;
+      border: 2px solid #0f62fe44; border-top-color: var(--cds-focus);
+      border-radius: 50%; animation: spin .7s linear infinite;
+    }
+    .cds--loading--lg {
+      width: 48px; height: 48px;
+      border-width: 4px; animation-duration: .8s;
+    }
+
+    /* ── Button ──────────────────────────────────────────────── */
+    .cds--btn {
+      display: inline-flex; align-items: center; justify-content: space-between;
+      gap: var(--cds-spacing-03);
+      height: 48px; padding: 0 63px 0 var(--cds-spacing-07);
+      font-size: 14px; font-family: inherit; font-weight: 600;
+      border: none; cursor: pointer;
+      transition: background .15s;
+      white-space: nowrap;
+      position: relative;
+    }
+    .cds--btn--primary {
+      background: var(--cds-button-primary);
+      color: var(--cds-text-inverse);
+    }
+    .cds--btn--primary:hover:not(:disabled) { background: var(--cds-button-primary-hover); }
+    .cds--btn--primary:disabled {
+      background: var(--cds-button-disabled);
+      color: #8d8d8d; cursor: not-allowed;
+    }
+    .cds--btn--secondary {
+      background: #393939; color: var(--cds-text-inverse);
+    }
+    .cds--btn--secondary:hover { background: #4c4c4c; }
+    .cds--btn__icon { position: absolute; right: var(--cds-spacing-05); flex-shrink: 0; }
+    .cds--btn--sm {
+      height: 32px; padding: 0 var(--cds-spacing-05);
+      font-size: 14px;
+    }
+    .cds--btn--sm .cds--btn__icon { position: static; }
+    .cds--btn--ghost {
+      background: none; color: var(--cds-interactive);
+      padding: 0 var(--cds-spacing-04);
+      height: 40px;
+    }
+    .cds--btn--ghost:hover { background: var(--cds-highlight); }
+
+    /* ── DataTable ───────────────────────────────────────────── */
+    .cds--data-table-container { overflow-x: auto; margin-top: var(--cds-spacing-06); }
+    .cds--data-table-heading {
+      font-size: 12px; font-weight: 600;
+      color: var(--cds-text-secondary);
+      text-transform: uppercase; letter-spacing: 0.32px;
+      margin-bottom: var(--cds-spacing-03);
+    }
+    .cds--data-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 14px;
+    }
+    .cds--data-table thead tr { background: #e0e0e0; }
+    .cds--data-table th {
+      padding: var(--cds-spacing-03) var(--cds-spacing-05);
+      text-align: left; font-size: 12px; font-weight: 600;
+      color: var(--cds-text-primary);
+      text-transform: uppercase; letter-spacing: 0.32px;
+      white-space: nowrap; border-bottom: 1px solid var(--cds-border-subtle);
+    }
+    .cds--data-table th.num { text-align: right; }
+    .cds--data-table td {
+      padding: var(--cds-spacing-03) var(--cds-spacing-05);
+      border-bottom: 1px solid var(--cds-border-subtle);
+      color: var(--cds-text-primary);
+      vertical-align: middle;
+    }
+    .cds--data-table td.num {
+      text-align: right;
+      font-family: "IBM Plex Mono", monospace;
+    }
+    .cds--data-table tbody tr:nth-child(even) td { background: var(--cds-layer-01); }
+    .cds--data-table tbody tr:hover td { background: var(--cds-highlight); }
+    .cds--data-table .total-col { font-weight: 600; color: var(--cds-interactive); }
+
+    /* ── Modal ───────────────────────────────────────────────── */
+    .cds--modal-container-bg {
       position: fixed; inset: 0; background: #161616cc;
-      display: none; align-items: center; justify-content: center; z-index: 999;
+      display: none; align-items: center; justify-content: center; z-index: 9000;
     }
-    .modal-backdrop.visible { display: flex; }
-    .modal-box {
-      background: #fff; padding: 40px 44px; width: 100%; max-width: 520px;
+    .cds--modal-container-bg.visible { display: flex; }
+    .cds--modal-container {
+      background: var(--cds-background);
+      width: 100%; max-width: 528px;
+      padding: var(--cds-spacing-07) var(--cds-spacing-07) var(--cds-spacing-07);
     }
-    .modal-box h2 {
-      font-size: 18px; font-weight: 600; margin-bottom: 6px; color: #161616;
+    .cds--modal-header { margin-bottom: var(--cds-spacing-06); }
+    .cds--modal-header__heading { font-size: 20px; font-weight: 600; color: var(--cds-text-primary); }
+    .cds--modal-header__label {
+      font-size: 12px; color: var(--cds-text-secondary);
+      margin-bottom: var(--cds-spacing-02);
+      text-transform: uppercase; letter-spacing: 0.32px;
     }
-    .modal-box .modal-sub {
-      font-size: 13px; color: #525252; margin-bottom: 24px; line-height: 1.6;
-    }
-    .modal-box label {
-      display: block; font-size: 12px; font-weight: 600;
-      color: #525252; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em;
-    }
-    .modal-box input[type=text], .modal-box input[type=password] {
-      width: 100%; padding: 10px 14px; border: 1px solid #8d8d8d;
-      font-size: 14px; font-family: inherit; outline: none;
-      transition: border-color .15s; margin-bottom: 16px;
-    }
-    .modal-box input:focus { border-color: #0f62fe; box-shadow: 0 0 0 2px #0f62fe33; }
-    .modal-box .modal-footer { display: flex; gap: 12px; margin-top: 8px; align-items: center; }
-    .modal-primary {
-      background: #0f62fe; color: #fff; border: none;
-      padding: 12px 28px; font-size: 14px; font-family: inherit;
-      font-weight: 600; cursor: pointer;
-    }
-    .modal-primary:hover { background: #0353e9; }
-    .modal-skip {
-      background: none; border: none; color: #525252;
-      font-size: 13px; font-family: inherit; cursor: pointer;
-      text-decoration: underline;
-    }
-    .modal-skip:hover { color: #161616; }
-    .modal-err {
-      font-size: 12px; color: #da1e28; margin-top: -10px; margin-bottom: 12px; display: none;
-    }
+    .cds--modal-content { font-size: 14px; color: var(--cds-text-secondary); line-height: 1.6; margin-bottom: var(--cds-spacing-07); }
+    .cds--modal-footer { display: flex; gap: var(--cds-spacing-03); }
+    .cds--modal-err { font-size: 12px; color: var(--cds-support-error); margin-bottom: var(--cds-spacing-04); display: none; }
 
     /* ── Loading overlay ─────────────────────────────────────── */
     #loading-overlay {
       position: fixed; inset: 0; background: #161616cc;
-      display: none; align-items: center; justify-content: center; z-index: 998;
+      display: none; align-items: center; justify-content: center; z-index: 9999;
     }
     #loading-overlay.visible { display: flex; }
-    .loading-box { background: #fff; padding: 40px 56px; text-align: center; }
-    .loading-box .big-spinner {
-      width: 48px; height: 48px;
-      border: 4px solid #0f62fe33; border-top-color: #0f62fe;
-      border-radius: 50%; animation: spin .8s linear infinite;
-      margin: 0 auto 16px;
+    .cds--loading-overlay__box {
+      background: var(--cds-background);
+      padding: var(--cds-spacing-08) var(--cds-spacing-10);
+      text-align: center;
     }
-    .loading-box p { font-size: 15px; color: #161616; }
-
-    footer {
-      text-align: center; padding: 24px;
-      font-size: 12px; color: #8d8d8d;
-      border-top: 1px solid #e0e0e0; margin-top: 40px;
+    .cds--loading-overlay__box p {
+      font-size: 14px; color: var(--cds-text-primary);
+      margin-top: var(--cds-spacing-05);
     }
 
-    /* ── Info box ────────────────────────────────────────────── */
-    .info-box {
-      background: #e8f0fd; border-left: 4px solid #0f62fe;
-      padding: 12px 16px; font-size: 13px; color: #161616; margin-bottom: 20px;
+    /* ── OCR result fields ───────────────────────────────────── */
+    .ocr-result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--cds-spacing-05); margin-bottom: var(--cds-spacing-06); }
+
+    /* ── Section divider ─────────────────────────────────────── */
+    .cds--section-divider {
+      border: none; border-top: 1px solid var(--cds-border-subtle);
+      margin: var(--cds-spacing-07) 0;
     }
 
-    /* ── OCR upload zone ─────────────────────────────────────── */
-    .ocr-section { margin-top: 24px; border-top: 1px solid #e0e0e0; padding-top: 20px; }
-    .ocr-section h3 {
-      font-size: 13px; font-weight: 600; color: #161616;
-      margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+    /* ── Helper text ─────────────────────────────────────────── */
+    .cds--form__helper-text {
+      font-size: 12px; color: var(--cds-text-secondary);
+      margin-top: var(--cds-spacing-02); line-height: 1.4;
     }
-    .ocr-drop {
-      border: 2px dashed #8d8d8d; padding: 0;
-      text-align: center; cursor: pointer;
-      transition: border-color .15s, background .15s;
-      position: relative; background: #fafafa;
-      display: flex; flex-direction: column; align-items: center;
-      justify-content: center; min-height: 110px;
-    }
-    .ocr-drop:hover, .ocr-drop.dragover { border-color: #0f62fe; background: #e8f0fd; }
-    .ocr-drop input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-    .ocr-drop .dz-icon { font-size: 24px; margin-bottom: 6px; color: #8d8d8d; }
-    .ocr-drop .dz-text { font-size: 13px; color: #525252; }
-    .ocr-drop .dz-hint { font-size: 11px; color: #8d8d8d; margin-top: 3px; }
-    .ocr-drop.has-image { border-color: #24a148; background: #f0faf2; padding: 0; }
 
+    /* ── Footer ──────────────────────────────────────────────── */
+    .cds--footer {
+      text-align: center; padding: var(--cds-spacing-07);
+      font-size: 12px; color: var(--cds-text-secondary);
+      border-top: 1px solid var(--cds-border-subtle);
+      margin-top: var(--cds-spacing-08);
+    }
+
+    /* ── OCR image preview ───────────────────────────────────── */
     #ocr-preview-img {
       max-width: 100%; max-height: 220px; object-fit: contain;
-      display: none; border: 1px solid #e0e0e0; margin-top: 10px;
+      display: none; border: 1px solid var(--cds-border-subtle);
+      margin-top: var(--cds-spacing-05);
     }
-    .ocr-progress {
-      margin-top: 10px; font-size: 12px; color: #525252;
-      display: none; align-items: center; gap: 8px;
-    }
-    .ocr-progress.visible { display: flex; }
-    .ocr-progress .mini-spinner {
-      width: 14px; height: 14px; border: 2px solid #0f62fe33;
-      border-top-color: #0f62fe; border-radius: 50%;
-      animation: spin .7s linear infinite; flex-shrink: 0;
-    }
-    .ocr-result-grid {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px;
-    }
-    .ocr-field label {
-      display: block; font-size: 11px; font-weight: 600; color: #525252;
-      text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px;
-    }
-    .ocr-field input {
-      width: 100%; padding: 9px 12px; border: 1px solid #8d8d8d;
-      font-size: 13px; font-family: inherit; outline: none;
-      transition: border-color .15s;
-    }
-    .ocr-field input:focus { border-color: #0f62fe; }
-    .ocr-field input.auto-filled { border-color: #24a148; background: #f0faf2; }
     .ocr-raw {
-      margin-top: 10px; font-size: 11px; color: #8d8d8d;
-      cursor: pointer; text-decoration: underline; display: none;
+      margin-top: var(--cds-spacing-03); font-size: 12px;
+      color: var(--cds-interactive); cursor: pointer;
+      text-decoration: underline; display: none;
     }
     #ocr-raw-text {
-      display: none; margin-top: 6px; padding: 8px; background: #f4f4f4;
-      border: 1px solid #e0e0e0; font-size: 10px; font-family: monospace;
-      white-space: pre-wrap; max-height: 100px; overflow-y: auto;
-      color: #525252;
+      display: none; margin-top: var(--cds-spacing-03);
+      padding: var(--cds-spacing-03);
+      background: var(--cds-layer-01);
+      border: 1px solid var(--cds-border-subtle);
+      font-size: 11px; font-family: "IBM Plex Mono", monospace;
+      white-space: pre-wrap; max-height: 120px; overflow-y: auto;
+      color: var(--cds-text-secondary);
     }
+
+    /* ── Status bar (generate section) ──────────────────────── */
+    .cds--status-bar {
+      margin-top: var(--cds-spacing-05);
+      display: none; align-items: center; gap: var(--cds-spacing-03);
+      padding: var(--cds-spacing-04) var(--cds-spacing-05);
+      font-size: 14px; border-left: 3px solid;
+    }
+    .cds--status-bar.info  { background: var(--cds-notification-info-bg); border-left-color: var(--cds-support-info); display: flex; }
+    .cds--status-bar.ok    { background: var(--cds-notification-success-bg); border-left-color: var(--cds-support-success); display: flex; }
+    .cds--status-bar.error { background: var(--cds-notification-error-bg); border-left-color: var(--cds-support-error); display: flex; }
   </style>
 </head>
 <body>
 
-<header>
-  <img src="IBM_logo®_rev_RGB.png" alt="IBM" height="24" style="flex-shrink:0;"/>
-  <div>
-    <h1>Quarterly Results Review — Presentation Generator</h1>
+<!-- ── UI Shell Header ──────────────────────────────────────────────────────── -->
+<header class="cds--header" role="banner">
+  <div class="cds--header__logo">
+    <img src="IBM_logo®_rev_RGB.png" alt="IBM" height="20"/>
   </div>
-  <div class="header-actions">
-    <!-- BOX_DISABLED <a class="header-btn" id="box-status-btn" href="#" onclick="boxConnect(); return false;" style="display:none; text-decoration:none;">📁 Conectar ao Box</a>
-    <button class="header-btn" id="box-disconnect-btn" onclick="boxDisconnect()" style="display:none; border-color:#da1e28; color:#da1e28;">✕ Desconectar Box</button> BOX_DISABLED -->
-    <button class="header-btn" onclick="openApiSettings()">⚙ Airtable Settings</button>
+  <span class="cds--header__name">Quarterly Results Review — Presentation Generator</span>
+  <div class="cds--header__actions">
+    <button class="cds--header__action" onclick="openApiSettings()">
+      <!-- Settings icon -->
+      <svg width="16" height="16" viewBox="0 0 32 32" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+        <path d="M27 16.76v-1.53l1.92-1.68A2 2 0 0029.3 11l-2.36-4a2 2 0 00-2.44-.84l-2.42.97a11.6 11.6 0 00-1.32-.77l-.36-2.56A2 2 0 0018.44 2h-4.88a2 2 0 00-1.96 1.8l-.36 2.56a11.6 11.6 0 00-1.32.77l-2.42-.97A2 2 0 005.06 7L2.7 11a2 2 0 00.44 2.55L5.06 15.23v1.53l-1.92 1.68A2 2 0 002.7 21l2.36 4a2 2 0 002.44.84l2.42-.97c.43.28.88.52 1.32.77l.36 2.56A2 2 0 0013.56 30h4.88a2 2 0 001.96-1.8l.36-2.56c.44-.25.89-.49 1.32-.77l2.42.97A2 2 0 0026.94 25l2.36-4a2 2 0 00-.44-2.55zM16 22a6 6 0 116-6 6 6 0 01-6 6z"/>
+      </svg>
+      Airtable Settings
+    </button>
   </div>
 </header>
 
 <main>
 
-  <!-- ── Data status bar (subtle, top of main) ─────────────────────────────── -->
-  <div id="data-status-box" style="display:none; margin-bottom:16px; padding:10px 16px; font-size:13px; border-left:4px solid #24a148; background:#defbe6;"></div>
+  <!-- ── Data status bar (errors only) ────────────────────────────────────── -->
+  <div id="data-status-box" style="display:none; margin-bottom:var(--cds-spacing-05); padding:var(--cds-spacing-03) var(--cds-spacing-05); font-size:14px; border-left:3px solid var(--cds-support-success); background:var(--cds-notification-success-bg);"></div>
 
-  <!-- BOX_DISABLED
-  <div id="box-card">
-    <div id="box-not-connected">
-      <a id="box-connect-link" href="#" onclick="boxConnect(); return false;">📁 Conectar ao Box</a>
-    </div>
-    <div id="box-connected-box" style="display:none;">
-      <div class="upload-grid" id="file-chips-box"></div>
-      <button onclick="boxReload()">↺ Recarregar planilhas do Box</button>
-    </div>
-  </div>
-  BOX_DISABLED -->
+  <!-- ── Progress Indicator ────────────────────────────────────────────────── -->
+  <ol class="cds--progress">
+    <li class="cds--progress-step cds--progress-step--current" id="progress-step-1">
+      <button class="cds--progress-step__button" type="button">
+        <span class="cds--progress-circle">1</span>
+        <span class="cds--progress-label">Selecionar Evento</span>
+      </button>
+      <div class="cds--progress-line"></div>
+    </li>
+    <li class="cds--progress-step cds--progress-step--inactive" id="progress-step-2">
+      <button class="cds--progress-step__button" type="button">
+        <span class="cds--progress-circle">2</span>
+        <span class="cds--progress-label">Gerar Apresentação</span>
+      </button>
+    </li>
+  </ol>
 
   <!-- ── Step 1: Choose event ──────────────────────────────────────────────── -->
-  <div class="card">
-    <h2><span class="step-badge">1</span> Selecionar Evento</h2>
+  <div class="cds--tile">
+    <h2 class="cds--tile__heading">
+      <svg width="20" height="20" viewBox="0 0 32 32" fill="currentColor"><path d="M16 2a14 14 0 100 28A14 14 0 0016 2zm0 6a4 4 0 110 8 4 4 0 010-8zm0 17a10 10 0 01-8-4c0-3 5.33-4.64 8-4.64S24 18 24 21a10 10 0 01-8 4z"/></svg>
+      Selecionar Evento
+    </h2>
 
-    <div class="search-wrap">
-      <input
-        type="text"
-        id="event-search"
-        placeholder="Buscar por nome do evento ou código Brief…"
-        autocomplete="off"
-        spellcheck="false"
-      />
-      <div class="dropdown" id="event-dropdown" role="listbox"></div>
-    </div>
-
-    <div id="selected-event-info">
-      <div class="event-pill" id="event-pill">
-        <div class="ev-icon">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 2.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zM8 12a4 4 0 01-3.5-2.1c0-1.16 2.33-1.8 3.5-1.8s3.5.64 3.5 1.8A4 4 0 018 12z" fill="white"/>
-          </svg>
-        </div>
-        <div class="ev-details">
-          <div class="name" id="pill-name">—</div>
-          <div class="meta" id="pill-meta">—</div>
-        </div>
-        <button class="clear-btn" id="clear-event" title="Limpar seleção">✕</button>
-      </div>
-
-      <!-- ── Metrics fields shown after event selection ─────────────────── -->
-      <div id="event-metrics" style="margin-top:16px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
-
-        <div>
-          <label style="display:block;font-size:11px;font-weight:600;color:#525252;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">
-            Nome do Evento (Airtable)
-          </label>
-          <div id="at-event-name" style="padding:10px 12px;border:1px solid #e0e0e0;background:#f4f4f4;font-size:13px;color:#161616;min-height:38px;">—</div>
-        </div>
-
-        <div>
-          <label for="input-expected-ind" style="display:block;font-size:11px;font-weight:600;color:#525252;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">
-            Expected Individuals
-            <span style="font-weight:400;text-transform:none;letter-spacing:normal;color:#8d8d8d;font-size:10px;">(do Airtable)</span>
-          </label>
-          <input type="number" id="input-expected-ind" min="0" step="1"
-            style="width:100%;padding:10px 12px;border:1px solid #8d8d8d;font-size:13px;font-family:inherit;outline:none;"
-            placeholder="—" oninput="updateDelta()"/>
-        </div>
-
-        <div>
-          <label for="input-actual-ind" style="display:block;font-size:11px;font-weight:600;color:#525252;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">
-            Actual Individuals
-            <span style="font-weight:400;text-transform:none;letter-spacing:normal;color:#8d8d8d;font-size:10px;">(preencher após o evento)</span>
-          </label>
-          <input type="number" id="input-actual-ind" min="0" step="1"
-            style="width:100%;padding:10px 12px;border:1px solid #8d8d8d;font-size:13px;font-family:inherit;outline:none;"
-            placeholder="—" oninput="updateDelta()"/>
-        </div>
-
-        <div>
-          <label style="display:block;font-size:11px;font-weight:600;color:#525252;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">
-            Delta (Actual − Expected)
-          </label>
-          <div id="ind-delta" style="padding:10px 12px;border:1px solid #e0e0e0;background:#f4f4f4;font-size:13px;font-weight:600;color:#161616;min-height:38px;">—</div>
-        </div>
-
+    <!-- Search -->
+    <div class="cds--form-item">
+      <label class="cds--label" for="event-search">Evento</label>
+      <div class="cds--search-wrap">
+        <svg class="cds--search-icon" width="16" height="16" viewBox="0 0 32 32" fill="currentColor"><path d="M29 27.586l-7.552-7.552a11 11 0 10-1.414 1.414L27.586 29zM4 13a9 9 0 119 9 9.01 9.01 0 01-9-9z"/></svg>
+        <input
+          type="text"
+          id="event-search"
+          class="cds--search-input"
+          placeholder="Buscar por nome do evento ou código Brief…"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <div class="cds--dropdown" id="event-dropdown" role="listbox"></div>
       </div>
     </div>
 
-    <!-- ── Step 1b: EPM Screenshot + Resultados do evento ─────────────────── -->
-    <div class="ocr-section" id="ocr-section" style="display:none;">
-      <h3>
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0">
-          <rect x="1" y="1" width="14" height="14" rx="1" stroke="#0f62fe" stroke-width="1.5" fill="none"/>
-          <path d="M4 6h8M4 8h5M4 10h6" stroke="#0f62fe" stroke-width="1.2" stroke-linecap="round"/>
-        </svg>
-        Resultados do evento — preencha manualmente ou carregue o screenshot do EPM
-      </h3>
+    <!-- Selected event tile -->
+    <div id="selected-event-info" style="display:none;">
+      <div class="cds--selectable-tile" id="event-pill">
+        <div class="cds--selectable-tile__icon">
+          <!-- User icon -->
+          <svg width="16" height="16" viewBox="0 0 32 32" fill="white"><path d="M16 2a14 14 0 100 28A14 14 0 0016 2zm0 6a4 4 0 110 8 4 4 0 010-8zm0 17a10 10 0 01-8-4c0-3 5.33-4.64 8-4.64S24 18 24 21a10 10 0 01-8 4z"/></svg>
+        </div>
+        <div class="cds--selectable-tile__body">
+          <div class="cds--selectable-tile__name" id="pill-name">—</div>
+          <div class="cds--selectable-tile__meta" id="pill-meta">—</div>
+        </div>
+        <button class="cds--selectable-tile__close" id="clear-event" title="Limpar seleção" aria-label="Remover evento selecionado">
+          <!-- Close icon -->
+          <svg width="16" height="16" viewBox="0 0 32 32" fill="currentColor"><path d="M24 9.4L22.6 8 16 14.6 9.4 8 8 9.4 14.6 16 8 22.6 9.4 24 16 17.4 22.6 24 24 22.6 17.4 16z"/></svg>
+        </button>
+      </div>
 
-      <!-- Campos sempre visíveis — editáveis a qualquer momento -->
-      <div class="ocr-result-grid" style="display:grid; grid-template-columns:1fr 1fr; margin-bottom:16px;">
-        <div class="ocr-field">
-          <label>Attendees <span style="font-weight:400;color:#8d8d8d;font-size:10px;">→ Actual Individuals no slide</span></label>
-          <input type="number" id="ocr-actual-ind" min="0" step="1" placeholder="Digite ou carregue a imagem…" oninput="syncOcrToFields()"/>
+      <!-- Metrics grid -->
+      <div class="cds--grid-3" id="event-metrics">
+        <div class="cds--form-item">
+          <label class="cds--label">Nome do Evento <span class="cds--label__helper">(Airtable)</span></label>
+          <div id="at-event-name" class="cds--display-field cds--display-field--empty" style="font-family:inherit;font-size:14px;font-weight:400;">—</div>
         </div>
-        <div class="ocr-field">
-          <label>SQO Creation <span style="font-weight:400;color:#8d8d8d;font-size:10px;">→ Actual SQOR no slide</span></label>
-          <input type="number" id="ocr-actual-sqor" min="0" step="1" placeholder="Digite ou carregue a imagem…" oninput="syncOcrToFields()"/>
+        <div class="cds--form-item">
+          <label class="cds--label" for="input-expected-ind">Expected Individuals <span class="cds--label__helper">(Airtable)</span></label>
+          <input type="number" id="input-expected-ind" class="cds--text-input" min="0" step="1" placeholder="—" oninput="updateDelta()"/>
         </div>
-        <div class="ocr-field">
-          <label>Named Accounts <span style="font-weight:400;color:#8d8d8d;font-size:10px;">→ % Named no slide</span></label>
-          <input type="number" id="ocr-named" min="0" step="1" placeholder="Digite ou carregue a imagem…" oninput="syncOcrToFields()"/>
+        <div class="cds--form-item">
+          <label class="cds--label" for="input-actual-ind">Actual Individuals <span class="cds--label__helper">(após o evento)</span></label>
+          <input type="number" id="input-actual-ind" class="cds--text-input" min="0" step="1" placeholder="—" oninput="updateDelta()"/>
         </div>
-        <div class="ocr-field">
-          <label>Horizon Accounts <span style="font-weight:400;color:#8d8d8d;font-size:10px;">→ % Horizon no slide</span></label>
-          <input type="number" id="ocr-horizon" min="0" step="1" placeholder="Digite ou carregue a imagem…" oninput="syncOcrToFields()"/>
+        <div class="cds--form-item">
+          <label class="cds--label">Delta <span class="cds--label__helper">(Actual − Expected)</span></label>
+          <div id="ind-delta" class="cds--display-field cds--display-field--empty">—</div>
         </div>
-        <div class="ocr-field" style="grid-column:1/3; display:flex; gap:12px;">
-          <div style="flex:1;">
-            <label>% Named Accounts <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(Named ÷ Attendees — calculado)</span></label>
-            <div id="ocr-named-pct" style="padding:9px 12px;border:1px solid #e0e0e0;background:#f4f4f4;font-size:13px;font-weight:600;color:#0f62fe;">—</div>
-          </div>
-          <div style="flex:1;">
-            <label>% Horizon Accounts <span style="font-weight:400;color:#8d8d8d;font-size:10px;">(Horizon ÷ Attendees — calculado)</span></label>
-            <div id="ocr-horizon-pct" style="padding:9px 12px;border:1px solid #e0e0e0;background:#f4f4f4;font-size:13px;font-weight:600;color:#0f62fe;">—</div>
-          </div>
+      </div>
+    </div>
+
+    <!-- ── EPM Results section ──────────────────────────────── -->
+    <div id="ocr-section" style="display:none;">
+      <hr class="cds--section-divider"/>
+
+      <div class="cds--data-table-heading" style="margin-bottom:var(--cds-spacing-05);">
+        Resultados do Evento
+      </div>
+
+      <!-- Result fields grid -->
+      <div class="ocr-result-grid">
+        <div class="cds--form-item">
+          <label class="cds--label" for="ocr-actual-ind">Attendees <span class="cds--label__helper">→ Actual Individuals</span></label>
+          <input type="number" id="ocr-actual-ind" class="cds--text-input" min="0" step="1" placeholder="—" oninput="syncOcrToFields()"/>
+        </div>
+        <div class="cds--form-item">
+          <label class="cds--label" for="ocr-actual-sqor">SQO Creation <span class="cds--label__helper">→ Actual SQOR</span></label>
+          <input type="number" id="ocr-actual-sqor" class="cds--text-input" min="0" step="1" placeholder="—" oninput="syncOcrToFields()"/>
+        </div>
+        <div class="cds--form-item">
+          <label class="cds--label" for="ocr-named">Named Accounts <span class="cds--label__helper">→ % Named</span></label>
+          <input type="number" id="ocr-named" class="cds--text-input" min="0" step="1" placeholder="—" oninput="syncOcrToFields()"/>
+        </div>
+        <div class="cds--form-item">
+          <label class="cds--label" for="ocr-horizon">Horizon Accounts <span class="cds--label__helper">→ % Horizon</span></label>
+          <input type="number" id="ocr-horizon" class="cds--text-input" min="0" step="1" placeholder="—" oninput="syncOcrToFields()"/>
+        </div>
+        <div class="cds--form-item">
+          <label class="cds--label">% Named Accounts <span class="cds--label__helper">(calculado)</span></label>
+          <div id="ocr-named-pct" class="cds--display-field cds--display-field--empty cds--display-field--computed">—</div>
+        </div>
+        <div class="cds--form-item">
+          <label class="cds--label">% Horizon Accounts <span class="cds--label__helper">(calculado)</span></label>
+          <div id="ocr-horizon-pct" class="cds--display-field cds--display-field--empty cds--display-field--computed">—</div>
         </div>
       </div>
 
-      <!-- Upload opcional para preencher automaticamente via IA Vision -->
-      <details style="margin-bottom:8px;" id="ai-vision-details">
-        <summary style="font-size:12px;font-weight:600;color:#525252;cursor:pointer;user-select:none;padding:8px 0;">
-          🤖 Preencher automaticamente via IA (GPT-4o Vision)
-        </summary>
-        <div style="margin-top:10px;">
-          <div class="ocr-drop" id="ocr-drop">
-            <input type="file" id="ocr-file-input" accept="image/*" onchange="handleOcrFile(this.files[0])"/>
-            <div class="dz-icon">🖼</div>
-            <div class="dz-text">Clique ou arraste o screenshot do EPM aqui</div>
-            <div class="dz-hint">PNG, JPG, JPEG, PNG — a IA lerá os dados e preencherá os campos automaticamente</div>
+      <!-- IA Vision Accordion -->
+      <div class="cds--accordion" id="ai-vision-accordion">
+        <div class="cds--accordion__item" id="ai-accordion-item">
+          <button class="cds--accordion__heading" type="button" onclick="toggleAiAccordion()" aria-expanded="false" aria-controls="ai-accordion-content">
+            <span class="cds--accordion__title">
+              <!-- AI / Machine Learning icon -->
+              <svg width="16" height="16" viewBox="0 0 32 32" fill="currentColor"><path d="M22 16a6 6 0 00-4-5.66V4h-4v6.34A6 6 0 0010 16a6 6 0 004 5.66V28h4v-6.34A6 6 0 0022 16zm-6 4a4 4 0 110-8 4 4 0 010 8z"/><path d="M6 8H2V6h4zm0 4H2v-2h4zm0 4H2v-2h4zm0 4H2v-2h4zm0 4H2v-2h4zM30 8h-4V6h4zm0 4h-4v-2h4zm0 4h-4v-2h4zm0 4h-4v-2h4zm0 4h-4v-2h4z"/></svg>
+              Preencher automaticamente via IA Vision
+            </span>
+            <svg class="cds--accordion__arrow" width="16" height="16" viewBox="0 0 32 32" fill="currentColor"><path d="M22 16L12 26l-1.4-1.4 8.6-8.6-8.6-8.6L12 6z"/></svg>
+          </button>
+          <div class="cds--accordion__content" id="ai-accordion-content">
+            <div class="cds--file-uploader" id="ocr-drop">
+              <input type="file" id="ocr-file-input" accept="image/*" onchange="handleOcrFile(this.files[0])"/>
+              <svg class="cds--file-uploader__icon" width="24" height="24" viewBox="0 0 32 32" fill="currentColor"><path d="M26 24v4H6v-4H4v4a2 2 0 002 2h20a2 2 0 002-2v-4zm0-10l-1.4-1.4L17 20.2V2h-2v18.2l-7.6-7.6L6 14l10 10 10-10z" transform="scale(1,-1) translate(0,-32)"/><path d="M6 14l1.4 1.4L15 7.8V26h2V7.8l7.6 7.6L26 14 16 4z"/></svg>
+              <p class="cds--file-uploader__text">
+                <span class="cds--file-uploader__link">Clique para fazer upload</span> ou arraste o screenshot do EPM
+              </p>
+              <p class="cds--file-uploader__hint">PNG, JPG — a IA extrai os dados e preenche os campos</p>
+            </div>
+            <img id="ocr-preview-img" alt="Preview do screenshot"/>
+            <div class="cds--inline-notification" id="ocr-progress">
+              <span class="cds--inline-notification__icon" id="ocr-progress-icon">
+                <div class="cds--loading"></div>
+              </span>
+              <div class="cds--inline-notification__content">
+                <span id="ocr-progress-text">Enviando para a IA…</span>
+              </div>
+            </div>
+            <div class="ocr-raw" id="ocr-raw-toggle" onclick="toggleOcrRaw()">Ver resposta bruta da IA</div>
+            <pre id="ocr-raw-text"></pre>
           </div>
-          <img id="ocr-preview-img" alt="Preview do screenshot" />
-          <div class="ocr-progress" id="ocr-progress">
-            <div class="mini-spinner"></div>
-            <span id="ocr-progress-text">Enviando para a IA…</span>
-          </div>
-          <div class="ocr-raw" id="ocr-raw-toggle" onclick="toggleOcrRaw()">
-            Ver resposta bruta da IA
-          </div>
-          <pre id="ocr-raw-text"></pre>
         </div>
-      </details>
+      </div>
     </div>
 
-    <div id="kpi-preview">
-      <h3>KPI Projections encontradas nas planilhas</h3>
-      <div class="kpi-table-wrap">
-        <table class="kpi-table" id="kpi-table">
+    <!-- KPI Table -->
+    <div id="kpi-preview" style="display:none;">
+      <hr class="cds--section-divider"/>
+      <div class="cds--data-table-heading">KPI Projections — planilhas carregadas</div>
+      <div class="cds--data-table-container">
+        <table class="cds--data-table" id="kpi-table">
           <thead>
             <tr>
               <th>UT 15</th>
@@ -516,59 +795,61 @@
   </div>
 
   <!-- ── Step 2: Generate ──────────────────────────────────────────────────── -->
-  <div class="card generate-section">
-    <h2><span class="step-badge">2</span> Gerar Apresentação</h2>
-    <p style="font-size:13px;color:#525252;margin-bottom:20px;">
-      Preenche a tabela de KPIs no modelo <strong>Quarterly Results Review Template_8.18.pptx</strong>
-      e faz o download do arquivo pronto.<br>
-      O espaço para o screenshot do EPM será mantido no slide — adicione a imagem manualmente no PowerPoint após o download.<br>
-      <span style="color:#6f6f6f;font-size:12px;">Requer: planilhas carregadas + evento selecionado.</span>
+  <div class="cds--tile">
+    <h2 class="cds--tile__heading">
+      <svg width="20" height="20" viewBox="0 0 32 32" fill="currentColor"><path d="M26 6H6a2 2 0 00-2 2v20a2 2 0 002 2h20a2 2 0 002-2V8a2 2 0 00-2-2zm0 22H6V8h20zM14 21l-4-4 1.4-1.4L14 18.2l6.6-6.6L22 13z"/></svg>
+      Gerar Apresentação
+    </h2>
+    <p style="font-size:14px; color:var(--cds-text-secondary); margin-bottom:var(--cds-spacing-06); line-height:1.6;">
+      Preenche a tabela de KPIs no modelo <strong style="color:var(--cds-text-primary);">Quarterly Results Review Template_8.18.pptx</strong>
+      e faz o download do arquivo pronto.
+      O espaço para o screenshot do EPM será mantido no slide.
     </p>
-    <button class="generate-btn" id="generate-btn" disabled onclick="generatePresentation()">
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0">
-        <path d="M2 3l12 5-12 5V9.5l8-1.5-8-1.5V3z" fill="currentColor"/>
-      </svg>
+    <p class="cds--form__helper-text" style="margin-bottom:var(--cds-spacing-06);">Requer: planilhas carregadas + evento selecionado.</p>
+    <button class="cds--btn cds--btn--primary" id="generate-btn" disabled onclick="generatePresentation()">
       Gerar e Baixar Apresentação
+      <!-- ArrowRight icon -->
+      <svg class="cds--btn__icon" width="16" height="16" viewBox="0 0 32 32" fill="currentColor"><path d="M18 6l-1.4 1.4 8.6 8.6H2v2h23.2l-8.6 8.6L18 28l11-11z"/></svg>
     </button>
-    <div class="status-bar" id="status-bar">
-      <div class="spinner" id="status-spinner" style="display:none"></div>
+    <div class="cds--status-bar" id="status-bar">
+      <div class="cds--loading" id="status-spinner" style="display:none"></div>
       <span id="status-text"></span>
     </div>
   </div>
 
 </main>
 
-<footer>Quarterly Results Review Generator · IBM Field Marketing · 2026</footer>
+<footer class="cds--footer">Quarterly Results Review Generator · IBM Field Marketing · 2026</footer>
 
 <!-- Loading overlay -->
 <div id="loading-overlay">
-  <div class="loading-box">
-    <div class="big-spinner"></div>
+  <div class="cds--loading-overlay__box">
+    <div class="cds--loading cds--loading--lg"></div>
     <p id="overlay-text">Processando…</p>
   </div>
 </div>
 
 <!-- Airtable API settings modal -->
-<div class="modal-backdrop" id="api-modal">
-  <div class="modal-box">
-    <h2>Configurar Airtable</h2>
-    <p class="modal-sub">
-      Insira seu <strong>Personal Access Token</strong> do Airtable uma única vez. Ele será salvo localmente no seu navegador e não precisará ser reinserido.<br>
-      Base e tabela já estão configuradas automaticamente.<br>
-      <strong>Deixe em branco</strong> para usar o app sem integração Airtable (sem Expected Individuals / data do evento).
-    </p>
-
-    <label for="at-token">
-      Personal Access Token
-      <a href="https://airtable.com/create/tokens/new" target="_blank" rel="noopener noreferrer" style="font-weight:400;font-size:11px;color:#0f62fe;margin-left:6px;text-transform:none;letter-spacing:normal;">para buscar seu Airtable Token, clique aqui</a>
-    </label>
-    <input type="password" id="at-token" placeholder="patXXXXXXXXXXXXXX" autocomplete="off"/>
-
-    <div class="modal-err" id="modal-err"></div>
-
-    <div class="modal-footer">
-      <button class="modal-primary" onclick="saveApiSettings()">Salvar e Continuar</button>
-      <button class="modal-skip" onclick="skipApiSettings()">Pular por agora</button>
+<div class="cds--modal-container-bg" id="api-modal">
+  <div class="cds--modal-container">
+    <div class="cds--modal-header">
+      <p class="cds--modal-header__label">Integração</p>
+      <h2 class="cds--modal-header__heading">Configurar Airtable</h2>
+    </div>
+    <div class="cds--modal-content">
+      Insira seu <strong>Personal Access Token</strong> do Airtable uma única vez. Ele será salvo localmente no seu navegador.<br><br>
+      <strong>Deixe em branco</strong> para usar o app sem integração Airtable.
+    </div>
+    <div class="cds--form-item">
+      <label class="cds--label" for="at-token">Personal Access Token
+        <a href="https://airtable.com/create/tokens/new" target="_blank" rel="noopener noreferrer" style="font-weight:400;font-size:11px;color:var(--cds-interactive);margin-left:6px;text-transform:none;letter-spacing:normal;">Criar token →</a>
+      </label>
+      <input type="password" id="at-token" class="cds--text-input" placeholder="patXXXXXXXXXXXXXX" autocomplete="off" style="margin-bottom:var(--cds-spacing-05);"/>
+    </div>
+    <div class="cds--modal-err" id="modal-err"></div>
+    <div class="cds--modal-footer">
+      <button class="cds--btn cds--btn--primary cds--btn--sm" onclick="saveApiSettings()">Salvar e Continuar</button>
+      <button class="cds--btn cds--btn--ghost cds--btn--sm" onclick="skipApiSettings()">Pular por agora</button>
     </div>
   </div>
 </div>
@@ -701,7 +982,7 @@ async function loadFromDataJson() {
     // If user already typed, update the dropdown to show the error
     const currentQuery = searchInput.value.trim();
     if (currentQuery.length >= 2) {
-      dropdown.innerHTML = `<div class="dropdown-empty">⚠ Falha ao carregar dados. Recarregue a página.</div>`;
+      dropdown.innerHTML = `<div class="cds--dropdown-empty">⚠ Falha ao carregar dados. Recarregue a página.</div>`;
       dropdown.classList.add("open");
     }
   }
@@ -1115,7 +1396,7 @@ const dropdown    = document.getElementById("event-dropdown");
 searchInput.addEventListener("input", onSearch);
 searchInput.addEventListener("keydown", onSearchKeyDown);
 document.addEventListener("click", (e) => {
-  if (!e.target.closest(".search-wrap")) closeDropdown();
+  if (!e.target.closest(".cds--search-wrap")) closeDropdown();
 });
 
 function getLocalMatches(query) {
@@ -1134,7 +1415,7 @@ function onSearch() {
 
   // While data.json is still loading, show a spinner and wait
   if (!dataReady) {
-    dropdown.innerHTML = `<div class="dropdown-empty">⏳ Carregando lista de eventos… aguarde um momento.</div>`;
+    dropdown.innerHTML = `<div class="cds--dropdown-empty">⏳ Carregando lista de eventos… aguarde um momento.</div>`;
     dropdown.classList.add("open");
     return;
   }
@@ -1166,18 +1447,18 @@ function renderDropdown(matches, q, loading = false) {
   focusedIdx = -1;
   if (!matches || !matches.length) {
     dropdown.innerHTML = loading
-      ? `<div class="dropdown-empty">Buscando…</div>`
-      : `<div class="dropdown-empty">Nenhum evento encontrado para "${escHtml(q)}"</div>`;
+      ? `<div class="cds--dropdown-empty">Buscando…</div>`
+      : `<div class="cds--dropdown-empty">Nenhum evento encontrado para "${escHtml(q)}"</div>`;
     dropdown.classList.add("open");
     return;
   }
   matches.forEach((ev, i) => {
     const item = document.createElement("div");
-    item.className = "dropdown-item";
+    item.className = "cds--dropdown-item";
     item.setAttribute("data-idx", i);
     item.innerHTML = `
-      <span class="ev-name">${highlight(escHtml(ev.event_name), q)}</span>
-      <span class="ev-brief">${highlight(escHtml(ev.brief), q)}</span>
+      <span class="cds--dropdown-item__name">${highlight(escHtml(ev.event_name), q)}</span>
+      <span class="cds--dropdown-item__tag">${highlight(escHtml(ev.brief), q)}</span>
     `;
     item.addEventListener("mousedown", (e) => { e.preventDefault(); selectEvent(ev); });
     dropdown.appendChild(item);
@@ -1187,7 +1468,7 @@ function renderDropdown(matches, q, loading = false) {
 }
 
 function onSearchKeyDown(e) {
-  const items = dropdown.querySelectorAll(".dropdown-item");
+  const items = dropdown.querySelectorAll(".cds--dropdown-item");
   if (!items.length) return;
   if (e.key === "ArrowDown") { e.preventDefault(); focusedIdx = Math.min(focusedIdx + 1, items.length - 1); updateFocus(items); }
   else if (e.key === "ArrowUp") { e.preventDefault(); focusedIdx = Math.max(focusedIdx - 1, 0); updateFocus(items); }
@@ -1242,7 +1523,9 @@ function renderSelectedEvent(ev) {
   document.getElementById("ocr-section").style.display = "block";
 
   // Airtable fields
-  document.getElementById("at-event-name").textContent = ev.event_name || "—";
+  const atNameEl = document.getElementById("at-event-name");
+  atNameEl.textContent = ev.event_name || "—";
+  atNameEl.classList.toggle("cds--display-field--empty", !ev.event_name);
   const expInd = ev.expected_individuals != null ? String(ev.expected_individuals) : "";
   document.getElementById("input-expected-ind").value = expInd;
   document.getElementById("input-actual-ind").value = "";
@@ -1277,10 +1560,13 @@ function updateDelta() {
   if (!isNaN(exp) && !isNaN(act)) {
     const delta = act - exp;
     el.textContent = (delta >= 0 ? "+" : "") + delta.toLocaleString("en-US");
-    el.style.color = delta >= 0 ? "#24a148" : "#da1e28";
+    el.classList.remove("cds--display-field--empty");
+    el.classList.toggle("cds--display-field--positive", delta >= 0);
+    el.classList.toggle("cds--display-field--negative", delta < 0);
   } else {
     el.textContent = "—";
-    el.style.color = "#161616";
+    el.classList.add("cds--display-field--empty");
+    el.classList.remove("cds--display-field--positive","cds--display-field--negative");
   }
 }
 
@@ -1329,7 +1615,11 @@ function resetOcr() {
   const previewImg = document.getElementById("ocr-preview-img");
   if (previewImg) { previewImg.style.display = "none"; previewImg.src = ""; }
   const progressEl = document.getElementById("ocr-progress");
-  if (progressEl) progressEl.classList.remove("visible");
+  if (progressEl) {
+    progressEl.classList.remove("visible");
+    progressEl.classList.remove("cds--inline-notification--success","cds--inline-notification--error","cds--inline-notification--info");
+    progressEl.classList.add("cds--inline-notification--info");
+  }
   const rawToggle = document.getElementById("ocr-raw-toggle");
   if (rawToggle) rawToggle.style.display = "none";
   const rawText = document.getElementById("ocr-raw-text");
@@ -1340,6 +1630,13 @@ function resetOcr() {
 function toggleOcrRaw() {
   const el = document.getElementById("ocr-raw-text");
   el.style.display = el.style.display === "none" ? "block" : "none";
+}
+
+function toggleAiAccordion() {
+  const item = document.getElementById("ai-accordion-item");
+  const btn  = item.querySelector(".cds--accordion__heading");
+  const isActive = item.classList.toggle("cds--accordion__item--active");
+  btn.setAttribute("aria-expanded", isActive);
 }
 
 // Called whenever any OCR field is edited manually — keeps percentages live
@@ -1380,7 +1677,8 @@ async function handleOcrFile(file) {
 
   const progressEl   = document.getElementById("ocr-progress");
   const progressText = document.getElementById("ocr-progress-text");
-  progressEl.classList.add("visible");
+  progressEl.classList.remove("cds--inline-notification--success","cds--inline-notification--error");
+  progressEl.classList.add("cds--inline-notification--info","visible");
   document.getElementById("ocr-raw-toggle").style.display = "none";
 
   // Guard: Worker URL must be configured
@@ -1491,13 +1789,21 @@ async function handleOcrFile(file) {
       ex.horizon     != null ? `Horizon: ${ex.horizon}` : null,
     ].filter(Boolean);
 
-    progressText.textContent = found.length
-      ? `✓ IA extraiu: ${found.join("  ·  ")}`
-      : "⚠ IA não reconheceu os valores — verifique os campos manualmente";
+    if (found.length) {
+      progressEl.classList.remove("cds--inline-notification--info","cds--inline-notification--error");
+      progressEl.classList.add("cds--inline-notification--success");
+      progressText.textContent = `IA extraiu: ${found.join("  ·  ")}`;
+    } else {
+      progressEl.classList.remove("cds--inline-notification--info","cds--inline-notification--success");
+      progressEl.classList.add("cds--inline-notification--error");
+      progressText.textContent = "IA não reconheceu os valores — verifique os campos manualmente";
+    }
 
   } catch (err) {
     const msg = (err && err.message) ? err.message : String(err);
-    progressText.textContent = "⚠ Erro na IA Vision: " + msg;
+    progressEl.classList.remove("cds--inline-notification--info","cds--inline-notification--success");
+    progressEl.classList.add("cds--inline-notification--error");
+    progressText.textContent = "Erro na IA Vision: " + msg;
     console.error("AI Vision error:", err);
   }
 }
@@ -1895,12 +2201,12 @@ function hideOverlay() {
 
 function setStatus(type, msg, spinner = false) {
   const bar = document.getElementById("status-bar");
-  bar.className = "status-bar " + type;
+  bar.className = "cds--status-bar " + type;
   document.getElementById("status-text").textContent = msg;
   document.getElementById("status-spinner").style.display = spinner ? "block" : "none";
 }
 function clearStatus() {
-  document.getElementById("status-bar").className = "status-bar";
+  document.getElementById("status-bar").className = "cds--status-bar";
 }
 
 function escHtml(str) {
