@@ -1218,7 +1218,11 @@ async function selectEvent(ev) {
 
     // Try to enrich with Airtable data
     const atData = await fetchAirtableForBrief(ev.brief);
-    if (atData) Object.assign(eventData, atData);
+    if (atData) {
+      // Don't overwrite event_name with empty string — keep the one from the spreadsheet
+      if (!atData.event_name) delete atData.event_name;
+      Object.assign(eventData, atData);
+    }
 
     selectedEvent = eventData;
     hideOverlay();
