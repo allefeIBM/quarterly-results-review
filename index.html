@@ -1698,11 +1698,20 @@ async function handleOcrFile(file) {
     });
 
     if (!resp.ok) {
-      const errBody = await resp.json().catch(() => ({}));
-      throw new Error(errBody.error || `HTTP ${resp.status}`);
+      let errMsg = `HTTP ${resp.status}`;
+      try {
+        const errBody = await resp.json();
+        if (errBody && errBody.error) errMsg = errBody.error;
+      } catch (_) {}
+      throw new Error(errMsg);
     }
 
-    const data    = await resp.json();
+    let data;
+    try {
+      data = await resp.json();
+    } catch (_) {
+      throw new Error("Invalid response from processing service — please try again");
+    }
     const rawText = (data.result || "").trim();
 
     document.getElementById("ocr-raw-text").textContent = rawText;
@@ -1789,7 +1798,12 @@ async function handleOcrFile(file) {
     }
 
   } catch (err) {
-    const msg = (err && err.message) ? err.message : String(err);
+    let msg = "Unknown error — please try again";
+    if (err && typeof err.message === "string" && err.message.trim()) {
+      msg = err.message;
+    } else if (err && typeof err === "string" && err.trim()) {
+      msg = err;
+    }
     progressEl.classList.remove("cds--inline-notification--info","cds--inline-notification--success");
     progressEl.classList.add("cds--inline-notification--error");
     progressText.textContent = "Error extracting data: " + msg;

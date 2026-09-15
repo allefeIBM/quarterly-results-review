@@ -1,13 +1,13 @@
 /**
  * Cloudflare Worker — Gemini Vision Proxy
- * Recebe uma imagem em base64 do index.html, chama o Google Gemini,
- * e devolve JSON com { individuals, sqor, named, horizon }.
+ * Receives a base64 image from index.html, calls Google Gemini,
+ * and returns JSON with { individuals, sqor, named, horizon }.
  *
- * Variável de ambiente necessária (configurar no painel do Cloudflare):
- *   GEMINI_API_KEY  →  sua chave AIza... do Google AI Studio
+ * Required environment variable (set in the Cloudflare dashboard):
+ *   GEMINI_API_KEY  →  your AIza... key from Google AI Studio
  */
 
-const GEMINI_MODEL = "gemini-3.6-flash";
+const GEMINI_MODEL = "gemini-2.0-flash";
 const GEMINI_URL   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const PROMPT = `Look at this image. Find and return these four numbers:
@@ -81,13 +81,18 @@ export default {
     });
 
     if (!geminiResp.ok) {
-      const err = await geminiResp.json().catch(() => ({}));
-      const msg = err?.error?.message || `Gemini HTTP ${geminiResp.status}`;
-      return jsonError(msg, 502);
+      const errBody = await geminiResp.json().catch(() => ({}));
+      const msg = errBody?.error?.message || `Gemini HTTP ${geminiResp.status}`;
+      const detail = errBody?.error?.status || "";
+      return jsonError(`${msg}${detail ? " (" + detail + ")" : ""}`, 502);
     }
 
     const geminiData = await geminiResp.json();
     const rawText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+
+    if (!rawText) {
+      return jsonError("Gemini returned an empty response — image may be unsupported or blocked", 502);
+    }
 
     // Return raw text — index.html will parse the JSON
     return new Response(JSON.stringify({ result: rawText }), {
