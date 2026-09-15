@@ -721,7 +721,7 @@
           <div class="cds--loading"></div>
         </span>
         <div class="cds--inline-notification__content">
-          <span id="ocr-progress-text">Sending to AI…</span>
+          <span id="ocr-progress-text">Loading data…</span>
         </div>
       </div>
       <div class="ocr-raw" id="ocr-raw-toggle" onclick="toggleOcrRaw()">View raw AI response</div>
@@ -1672,12 +1672,12 @@ async function handleOcrFile(file) {
 
   // Guard: Worker URL must be configured
   if (!AI_WORKER_URL || AI_WORKER_URL === "COLE_AQUI_A_URL_DO_SEU_WORKER") {
-    progressText.textContent = "⚠ Worker URL não configurada. Contate o administrador do sistema.";
+    progressText.textContent = "⚠ Service not configured. Please contact the system administrator.";
     return;
   }
 
   try {
-    progressText.textContent = "Converting image…";
+    progressText.textContent = "Loading data…";
 
     // Convert file to base64
     const base64 = await new Promise((resolve, reject) => {
@@ -1689,7 +1689,7 @@ async function handleOcrFile(file) {
 
     const mimeType = file.type || "image/png";
 
-    progressText.textContent = "Sending to AI…";
+    progressText.textContent = "Loading data into the system…";
 
     const resp = await fetch(AI_WORKER_URL, {
       method: "POST",
@@ -1781,18 +1781,18 @@ async function handleOcrFile(file) {
     if (found.length) {
       progressEl.classList.remove("cds--inline-notification--info","cds--inline-notification--error");
       progressEl.classList.add("cds--inline-notification--success");
-      progressText.textContent = `AI extracted: ${found.join("  ·  ")}`;
+      progressText.textContent = `Data extracted: ${found.join("  ·  ")}`;
     } else {
       progressEl.classList.remove("cds--inline-notification--info","cds--inline-notification--success");
       progressEl.classList.add("cds--inline-notification--error");
-      progressText.textContent = "AI could not recognize values — please fill the fields manually";
+      progressText.textContent = "Could not extract values — please fill the fields manually";
     }
 
   } catch (err) {
     const msg = (err && err.message) ? err.message : String(err);
     progressEl.classList.remove("cds--inline-notification--info","cds--inline-notification--success");
     progressEl.classList.add("cds--inline-notification--error");
-    progressText.textContent = "AI Vision error: " + msg;
+    progressText.textContent = "Error extracting data: " + msg;
     console.error("AI Vision error:", err);
   }
 }
