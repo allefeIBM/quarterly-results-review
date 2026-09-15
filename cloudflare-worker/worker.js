@@ -7,16 +7,19 @@
  *   GEMINI_API_KEY  →  sua chave AIza... do Google AI Studio
  */
 
-const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_MODEL = "gemini-3.6-flash";
 const GEMINI_URL   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-const PROMPT = `Extract the following numeric values from the image and return them as a JSON object with exactly these keys:
-- "individuals": the number next to "Attendees" or "Total Attendees" (integer, null if not found)
-- "sqor": the number next to "SQO Creation" in dollars (number, null if not found — strip $ and commas)
-- "named": the number next to "Named Accounts" (integer, null if not found)
-- "horizon": the number next to "Horizon Accounts" (integer, null if not found)
+const PROMPT = `Look at this image and find these four numbers. Return ONLY a single JSON object, nothing else — no text before, no text after, no markdown, no explanation.
 
-Return ONLY valid JSON, no explanation, no markdown. Example: {"individuals":245,"sqor":180000,"named":120,"horizon":55}`;
+JSON keys to return:
+"individuals" = the integer next to the label "Attendees" or "Total Attendees" (null if not visible)
+"sqor" = the number next to the label "SQO Creation" with $ removed and no commas (null if not visible)
+"named" = the integer next to the label "Named Accounts" (null if not visible)
+"horizon" = the integer next to the label "Horizon Accounts" (null if not visible)
+
+Your entire response must be exactly this format and nothing else:
+{"individuals":245,"sqor":180000,"named":120,"horizon":55}`;
 
 export default {
   async fetch(request, env) {

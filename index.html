@@ -1426,12 +1426,34 @@ async function handleOcrFile(file) {
     document.getElementById("ocr-raw-toggle").style.display = "block";
 
     // Parse the JSON returned by the AI
+    // Strategy: 1) try strict JSON parse, 2) try extracting JSON object via regex,
+    // 3) fall back to key:value line parsing for when the AI returns free text
     let ex = { individuals: null, sqor: null, named: null, horizon: null };
     try {
+      // Strip markdown code fences if present
       const clean = rawText.replace(/^```[a-z]*\n?/i, "").replace(/\n?```$/, "").trim();
       ex = JSON.parse(clean);
     } catch (_) {
-      ex = parseEpmText(rawText);
+      // Try to find a JSON object anywhere in the response
+      const jsonMatch = rawText.match(/\{[^}]+\}/);
+      if (jsonMatch) {
+        try { ex = JSON.parse(jsonMatch[0]); } catch (_) {}
+      }
+      // If still empty, parse free-text key: value lines
+      if (ex.individuals === null && ex.sqor === null && ex.named === null && ex.horizon === null) {
+        const lines = rawText.split(/\n/);
+        for (const line of lines) {
+          const kv = line.match(/^"?(\w+)"?\s*[=:]\s*([0-9,.$]+)/i);
+          if (!kv) continue;
+          const key = kv[1].toLowerCase();
+          const val = parseFloat(kv[2].replace(/[$,]/g, ""));
+          if (isNaN(val)) continue;
+          if (key === "individuals") ex.individuals = val;
+          else if (key === "sqor")   ex.sqor = val;
+          else if (key === "named")  ex.named = val;
+          else if (key === "horizon") ex.horizon = val;
+        }
+      }
     }
 
     // Helper: fill a field and mark it auto-filled
