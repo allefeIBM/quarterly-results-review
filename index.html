@@ -698,15 +698,39 @@
       </div>
     </div>
 
-    <!-- ── EPM Results section ──────────────────────────────── -->
+    <!-- ── EPM Results section — shown after event selection ─── -->
     <div id="ocr-section" style="display:none;">
       <hr class="cds--section-divider"/>
 
-      <div class="cds--data-table-heading" style="margin-bottom:var(--cds-spacing-05);">
-        Event Results
+      <!-- AI Vision upload — always open, first thing to fill -->
+      <div class="cds--data-table-heading" style="margin-bottom:var(--cds-spacing-04);display:flex;align-items:center;gap:var(--cds-spacing-03);">
+        <svg width="16" height="16" viewBox="0 0 32 32" fill="currentColor"><path d="M22 16a6 6 0 00-4-5.66V4h-4v6.34A6 6 0 0010 16a6 6 0 004 5.66V28h4v-6.34A6 6 0 0022 16zm-6 4a4 4 0 110-8 4 4 0 010 8z"/><path d="M6 8H2V6h4zm0 4H2v-2h4zm0 4H2v-2h4zm0 4H2v-2h4zm0 4H2v-2h4zM30 8h-4V6h4zm0 4h-4v-2h4zm0 4h-4v-2h4zm0 4h-4v-2h4zm0 4h-4v-2h4z"/></svg>
+        Auto-fill via AI Vision
       </div>
+      <div class="cds--file-uploader" id="ocr-drop" style="margin-bottom:var(--cds-spacing-05);">
+        <input type="file" id="ocr-file-input" accept="image/*" onchange="handleOcrFile(this.files[0])"/>
+        <svg class="cds--file-uploader__icon" width="24" height="24" viewBox="0 0 32 32" fill="currentColor"><path d="M26 24v4H6v-4H4v4a2 2 0 002 2h20a2 2 0 002-2v-4zm0-10l-1.4-1.4L17 20.2V2h-2v18.2l-7.6-7.6L6 14l10 10 10-10z" transform="scale(1,-1) translate(0,-32)"/><path d="M6 14l1.4 1.4L15 7.8V26h2V7.8l7.6 7.6L26 14 16 4z"/></svg>
+        <p class="cds--file-uploader__text">
+          <span class="cds--file-uploader__link">Click to upload</span> or drag the EPM screenshot here
+        </p>
+        <p class="cds--file-uploader__hint">PNG, JPG — AI will extract the data and fill the fields below automatically</p>
+      </div>
+      <img id="ocr-preview-img" alt="Screenshot preview"/>
+      <div class="cds--inline-notification" id="ocr-progress">
+        <span class="cds--inline-notification__icon" id="ocr-progress-icon">
+          <div class="cds--loading"></div>
+        </span>
+        <div class="cds--inline-notification__content">
+          <span id="ocr-progress-text">Sending to AI…</span>
+        </div>
+      </div>
+      <div class="ocr-raw" id="ocr-raw-toggle" onclick="toggleOcrRaw()">View raw AI response</div>
+      <pre id="ocr-raw-text"></pre>
 
-      <!-- Result fields grid -->
+      <hr class="cds--section-divider"/>
+
+      <!-- Event Results fields — filled by AI or manually -->
+      <div class="cds--data-table-heading" style="margin-bottom:var(--cds-spacing-05);">Event Results</div>
       <div class="ocr-result-grid">
         <div class="cds--form-item">
           <label class="cds--label" for="ocr-actual-ind">Attendees <span class="cds--label__helper">→ Actual Individuals</span></label>
@@ -731,41 +755,6 @@
         <div class="cds--form-item">
           <label class="cds--label">% Horizon Accounts <span class="cds--label__helper">(calculated)</span></label>
           <div id="ocr-horizon-pct" class="cds--display-field cds--display-field--empty cds--display-field--computed">—</div>
-        </div>
-      </div>
-
-      <!-- IA Vision Accordion -->
-      <div class="cds--accordion" id="ai-vision-accordion">
-        <div class="cds--accordion__item" id="ai-accordion-item">
-          <button class="cds--accordion__heading" type="button" onclick="toggleAiAccordion()" aria-expanded="false" aria-controls="ai-accordion-content">
-            <span class="cds--accordion__title">
-              <!-- AI / Machine Learning icon -->
-              <svg width="16" height="16" viewBox="0 0 32 32" fill="currentColor"><path d="M22 16a6 6 0 00-4-5.66V4h-4v6.34A6 6 0 0010 16a6 6 0 004 5.66V28h4v-6.34A6 6 0 0022 16zm-6 4a4 4 0 110-8 4 4 0 010 8z"/><path d="M6 8H2V6h4zm0 4H2v-2h4zm0 4H2v-2h4zm0 4H2v-2h4zm0 4H2v-2h4zM30 8h-4V6h4zm0 4h-4v-2h4zm0 4h-4v-2h4zm0 4h-4v-2h4zm0 4h-4v-2h4z"/></svg>
-              Auto-fill via AI Vision
-            </span>
-            <svg class="cds--accordion__arrow" width="16" height="16" viewBox="0 0 32 32" fill="currentColor"><path d="M22 16L12 26l-1.4-1.4 8.6-8.6-8.6-8.6L12 6z"/></svg>
-          </button>
-          <div class="cds--accordion__content" id="ai-accordion-content">
-            <div class="cds--file-uploader" id="ocr-drop">
-              <input type="file" id="ocr-file-input" accept="image/*" onchange="handleOcrFile(this.files[0])"/>
-              <svg class="cds--file-uploader__icon" width="24" height="24" viewBox="0 0 32 32" fill="currentColor"><path d="M26 24v4H6v-4H4v4a2 2 0 002 2h20a2 2 0 002-2v-4zm0-10l-1.4-1.4L17 20.2V2h-2v18.2l-7.6-7.6L6 14l10 10 10-10z" transform="scale(1,-1) translate(0,-32)"/><path d="M6 14l1.4 1.4L15 7.8V26h2V7.8l7.6 7.6L26 14 16 4z"/></svg>
-              <p class="cds--file-uploader__text">
-                <span class="cds--file-uploader__link">Click to upload</span> or drag the EPM screenshot here
-              </p>
-              <p class="cds--file-uploader__hint">PNG, JPG — AI will extract the data and fill the fields</p>
-            </div>
-            <img id="ocr-preview-img" alt="Screenshot preview"/>
-            <div class="cds--inline-notification" id="ocr-progress">
-              <span class="cds--inline-notification__icon" id="ocr-progress-icon">
-                <div class="cds--loading"></div>
-              </span>
-              <div class="cds--inline-notification__content">
-                <span id="ocr-progress-text">Sending to AI…</span>
-              </div>
-            </div>
-            <div class="ocr-raw" id="ocr-raw-toggle" onclick="toggleOcrRaw()">View raw AI response</div>
-            <pre id="ocr-raw-text"></pre>
-          </div>
         </div>
       </div>
     </div>
