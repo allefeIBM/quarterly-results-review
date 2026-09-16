@@ -925,6 +925,7 @@ let allEvents   = {};   // { BRIEF_UPPER: { event_name, brief, kpi_rows[], ...ai
 let selectedEvent = null;
 let airtableCache = {}; // brief_upper → airtable fields
 let dataReady = false;  // true once data.json has been parsed and searchIndex built
+let uploadedScreenshotDataUrl = null; // data:image/... for PPTX embedding
 
 // ── Cloudflare Worker URL (set after deploy) ──────────────────────────────────
 // Replace the placeholder below with your Worker URL after deploying.
@@ -1673,6 +1674,8 @@ ocrDrop.addEventListener("drop", (e) => {
 });
 
 function resetOcr() {
+  uploadedScreenshotDataUrl = null;
+
   // Clear all result fields
   ["ocr-actual-ind","ocr-actual-sqor","ocr-named","ocr-horizon"].forEach(id => {
     const el = document.getElementById(id);
@@ -1767,13 +1770,15 @@ async function handleOcrFile(file) {
   try {
     progressText.textContent = "Loading data…";
 
-    // Convert file to base64
-    const base64 = await new Promise((resolve, reject) => {
+    // Convert file to base64 & store full dataUrl for PPTX export
+    const dataUrl = await new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload  = () => resolve(reader.result.split(",")[1]);
+      reader.onload  = () => resolve(reader.result);
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
+    uploadedScreenshotDataUrl = dataUrl;
+    const base64 = dataUrl.split(",")[1];
 
     const mimeType = file.type || "image/png";
 
@@ -2157,16 +2162,26 @@ function buildMainSlide(pptx, ev) {
     fontSize: 14, fontFace: "IBM Plex Sans Light", color: "000000", align: "center",
   });
 
-  // ── EPM screenshot area — dashed rect (id=2) ──────────────────────────────
-  slide.addShape(pptx.ShapeType.rect, {
-    x: emu(4041735), y: emu(1199213), w: emu(8013100), h: emu(3343795),
-    fill: { type: "none" },
-    line: { color: "4472C4", width: 1.5, dashType: "dash" },
-  });
-  slide.addText("[Paste screenshot of EPM dashboard]", {
-    x: emu(6219984), y: emu(2648882), w: emu(3957403), h: emu(329783),
-    fontSize: 14, fontFace: "IBM Plex Sans Light", color: "525252", align: "center",
-  });
+  // ── EPM screenshot area (id=2) ────────────────────────────────────────────
+  if (uploadedScreenshotDataUrl) {
+    // Embed the actual uploaded screenshot image in the exact placeholder box
+    slide.addImage({
+      data: uploadedScreenshotDataUrl,
+      x: emu(4041735), y: emu(1199213), w: emu(8013100), h: emu(3343795),
+      sizing: { type: "contain", w: emu(8013100), h: emu(3343795) },
+    });
+  } else {
+    // Fallback: dashed rect placeholder if no screenshot was uploaded
+    slide.addShape(pptx.ShapeType.rect, {
+      x: emu(4041735), y: emu(1199213), w: emu(8013100), h: emu(3343795),
+      fill: { type: "none" },
+      line: { color: "4472C4", width: 1.5, dashType: "dash" },
+    });
+    slide.addText("[Paste screenshot of EPM dashboard]", {
+      x: emu(6219984), y: emu(2648882), w: emu(3957403), h: emu(329783),
+      fontSize: 14, fontFace: "IBM Plex Sans Light", color: "525252", align: "center",
+    });
+  }
 
   // ── Date of EPM pull (id=13) ─────────────────────────────────────────────
   slide.addText(`Pulled ${epmPullDate}`, {
@@ -2265,14 +2280,14 @@ function buildMainSlide(pptx, ev) {
   });
 
   // ── Table 15 (3×1) — Event Highlights / Future Recommendations (id=16)
-  //    x=0.80cm  y=12.89cm  w=9.5cm  h=5.21cm
+  //    x=0.80cm (0.31"), y=4.55" (11.56cm), w=9.5cm (3.74"), h=2.50" (6.35cm) — fits completely on 7.5" slide
   slide.addTable([
-    [ hCell("Event Highlights / Future Recommendations", { fontSize: 10 }) ],
-    [ dCell(highlightsText, { align: "left", fontSize: 9, valign: "top" }) ],
+    [ hCell("Event Highlights / Future Recommendations", { fontSize: 9 }) ],
+    [ dCell(highlightsText, { align: "left", fontSize: 8.5, valign: "top" }) ],
     [ mCell(decisionText, { fontSize: 9 }) ],
   ], {
-    x: cm(0.80), y: cm(12.89), w: cm(9.5),
-    rowH: [0.4, 2.6, 0.4], ...tblFont,
+    x: cm(0.80), y: 4.55, w: cm(9.5),
+    rowH: [0.32, 1.85, 0.32], ...tblFont,
   });
 }
 
