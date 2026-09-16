@@ -2171,14 +2171,9 @@ function buildMainSlide(pptx, ev) {
       sizing: { type: "contain", w: emu(8013100), h: emu(3343795) },
     });
   } else {
-    // Fallback: dashed rect placeholder if no screenshot was uploaded
-    slide.addShape(pptx.ShapeType.rect, {
-      x: emu(4041735), y: emu(1199213), w: emu(8013100), h: emu(3343795),
-      fill: { type: "none" },
-      line: { color: "4472C4", width: 1.5, dashType: "dash" },
-    });
+    // Fallback: placeholder text if no screenshot was uploaded
     slide.addText("[Paste screenshot of EPM dashboard]", {
-      x: emu(6219984), y: emu(2648882), w: emu(3957403), h: emu(329783),
+      x: emu(4041735), y: emu(1199213), w: emu(8013100), h: emu(3343795),
       fontSize: 14, fontFace: "IBM Plex Sans Light", color: "525252", align: "center",
     });
   }
@@ -2187,13 +2182,6 @@ function buildMainSlide(pptx, ev) {
   slide.addText(`Pulled ${epmPullDate}`, {
     x: emu(7123336), y: emu(4731406), w: emu(1912177), h: emu(230647),
     fontSize: 12, fontFace: "IBM Plex Sans Light", color: "000000", italic: true,
-  });
-
-  // ── KPI projection area — dashed rect (id=4) ─────────────────────────────
-  slide.addShape(pptx.ShapeType.rect, {
-    x: emu(3926798), y: emu(5411449), w: emu(8128036), h: emu(653470),
-    fill: { type: "none" },
-    line: { color: "4472C4", width: 1.5, dashType: "dash" },
   });
 
   // ── KPI table (id=8 area) ────────────────────────────────────────────────
