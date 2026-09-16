@@ -841,19 +841,24 @@
       <!-- Event Highlights / Future Recommendations & Decision -->
       <div class="cds--data-table-heading" style="margin-bottom:var(--cds-spacing-05);">Event Highlights &amp; Recommendations</div>
       
-      <div class="cds--form-item" style="margin-bottom:var(--cds-spacing-06);">
+      <div class="cds--form-item" style="margin-bottom:var(--cds-spacing-02);">
         <label class="cds--label" for="input-highlights">
           Event Highlights / Future Recommendations
           <span class="cds--label__helper">— key meetings, large deals, activations, reasons for delta</span>
+          <span style="color:var(--cds-support-error);margin-left:2px;" aria-hidden="true">*</span>
         </label>
-        <textarea id="input-highlights" class="cds--textarea" rows="4" placeholder="# of meetings onsite / how did they perform&#10;Any large deals made/progressed&#10;Cool activation or creative idea implemented&#10;If we didn't meet projections, why not?"></textarea>
+        <textarea id="input-highlights" class="cds--textarea" rows="4" placeholder="# of meetings onsite / how did they perform&#10;Any large deals made/progressed&#10;Cool activation or creative idea implemented&#10;If we didn't meet projections, why not?" oninput="clearFieldError('err-highlights')"></textarea>
+        <p id="err-highlights" class="cds--form__helper-text" style="display:none;color:var(--cds-support-error);margin-top:var(--cds-spacing-02);">
+          ⚠ Please fill in the Event Highlights before generating the presentation.
+        </p>
       </div>
 
-      <div class="cds--form-item" style="margin-bottom:var(--cds-spacing-05);">
+      <div class="cds--form-item" style="margin-bottom:var(--cds-spacing-05);margin-top:var(--cds-spacing-05);">
         <label class="cds--label">
           Plan Decision <span class="cds--label__helper">→ [Keep, Change, or Remove From Plan]</span>
+          <span style="color:var(--cds-support-error);margin-left:2px;" aria-hidden="true">*</span>
         </label>
-        <div class="cds--radio-group">
+        <div class="cds--radio-group" onclick="clearFieldError('err-decision')">
           <label class="cds--radio-label">
             <input type="radio" name="plan-decision" value="Keep" id="plan-decision-keep"/>
             <span>Keep</span>
@@ -867,6 +872,9 @@
             <span>Remove From Plan</span>
           </label>
         </div>
+        <p id="err-decision" class="cds--form__helper-text" style="display:none;color:var(--cds-support-error);margin-top:var(--cds-spacing-02);">
+          ⚠ Please select a Plan Decision before generating the presentation.
+        </p>
       </div>
     </div>
 
@@ -913,7 +921,7 @@
         <svg class="cds--btn__icon" width="16" height="16" viewBox="0 0 32 32" fill="currentColor"><path d="M18 6l-1.4 1.4 8.6 8.6H2v2h23.2l-8.6 8.6L18 28l11-11z"/></svg>
       </button>
       <button class="cds--btn cds--btn--tertiary" id="reset-all-btn" onclick="clearAndResetAll()">
-        Limpar dados e pesquisar novo evento
+        Clear data and search a new event
         <!-- Reset icon -->
         <svg class="cds--btn__icon" width="16" height="16" viewBox="0 0 32 32" fill="currentColor"><path d="M18 28A12 12 0 106 16v6.2l-3.6-3.6L1 20l6 6 6-6-1.4-1.4L8 22.2V16a10 10 0 1110 10z"/></svg>
       </button>
@@ -2189,8 +2197,45 @@ function updateGenerateBtn() {
 // ═══════════════════════════════════════════════════════════════════════════════
 // PPTX GENERATION — client-side with PptxGenJS
 // ═══════════════════════════════════════════════════════════════════════════════
+function clearFieldError(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = "none";
+}
+
 async function generatePresentation() {
   if (!selectedEvent) return;
+
+  // ── Required field validation ──────────────────────────────────────────
+  const highlightsVal = (document.getElementById("input-highlights")?.value || "").trim();
+  const decisionVal   = document.querySelector('input[name="plan-decision"]:checked');
+  let hasError = false;
+
+  const highlightsErr = document.getElementById("err-highlights");
+  const decisionErr   = document.getElementById("err-decision");
+
+  if (highlightsErr) highlightsErr.style.display = "none";
+  if (decisionErr)   decisionErr.style.display   = "none";
+
+  if (!highlightsVal) {
+    if (highlightsErr) {
+      highlightsErr.style.display = "block";
+      document.getElementById("input-highlights").style.borderBottomColor = "var(--cds-support-error)";
+      document.getElementById("input-highlights").scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    hasError = true;
+  }
+  if (!decisionVal) {
+    if (decisionErr) {
+      decisionErr.style.display = "block";
+      if (!hasError) decisionErr.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    hasError = true;
+  }
+  if (hasError) return;
+
+  // Restore textarea border if previously errored
+  const ta = document.getElementById("input-highlights");
+  if (ta) ta.style.borderBottomColor = "";
 
   const btn = document.getElementById("generate-btn");
   btn.disabled = true;
