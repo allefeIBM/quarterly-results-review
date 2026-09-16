@@ -1474,6 +1474,7 @@ function getLocalMatches(query) {
 }
 
 function onSearch() {
+  clearStatus();
   const q = searchInput.value.trim();
   if (q.length < 2) { closeDropdown(); return; }
 
@@ -1553,6 +1554,7 @@ function closeDropdown() {
 
 async function selectEvent(ev) {
   closeDropdown();
+  clearStatus();
   searchInput.value = ev.brief;
   selectedEvent = null;
 
@@ -1655,6 +1657,7 @@ document.getElementById("clear-event").addEventListener("click", () => {
   document.getElementById("ind-delta").textContent = "—";
   document.getElementById("ind-delta").style.color = "#161616";
   resetOcr();
+  clearStatus();
   updateGenerateBtn();
 });
 
