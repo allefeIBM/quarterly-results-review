@@ -230,6 +230,47 @@
       border-bottom-color: var(--cds-support-success);
       background: #f0faf2;
     }
+    .cds--textarea {
+      width: 100%; min-height: 96px; padding: var(--cds-spacing-03) var(--cds-spacing-04);
+      background: var(--cds-field-01);
+      border: none; border-bottom: 1px solid var(--cds-border-strong);
+      color: var(--cds-text-primary);
+      font-size: 14px; font-family: inherit; line-height: 1.5;
+      outline: none; resize: vertical; box-sizing: border-box;
+      transition: background .15s, box-shadow .15s;
+    }
+    .cds--textarea:focus {
+      background: var(--cds-field-02);
+      border-bottom-color: var(--cds-focus);
+      box-shadow: 0 2px 0 0 var(--cds-focus);
+    }
+    .cds--radio-group {
+      display: flex; gap: var(--cds-spacing-06); align-items: center;
+      margin-top: var(--cds-spacing-03);
+    }
+    .cds--radio-label {
+      display: inline-flex; align-items: center; gap: var(--cds-spacing-03);
+      font-size: 14px; color: var(--cds-text-primary); cursor: pointer;
+    }
+    .cds--radio-label input[type="radio"] {
+      appearance: none; -webkit-appearance: none;
+      width: 18px; height: 18px; border-radius: 50%;
+      border: 2px solid var(--cds-border-strong);
+      background: transparent; outline: none; margin: 0;
+      display: inline-grid; place-content: center; cursor: pointer;
+      transition: border-color .15s;
+    }
+    .cds--radio-label input[type="radio"]:checked {
+      border-color: var(--cds-interactive);
+    }
+    .cds--radio-label input[type="radio"]::before {
+      content: ""; width: 8px; height: 8px; border-radius: 50%;
+      background: var(--cds-interactive); transform: scale(0);
+      transition: transform .12s ease-in-out;
+    }
+    .cds--radio-label input[type="radio"]:checked::before {
+      transform: scale(1);
+    }
 
     /* ── Computed / read-only display field ──────────────────── */
     .cds--display-field {
@@ -757,6 +798,39 @@
           <div id="ocr-horizon-pct" class="cds--display-field cds--display-field--empty cds--display-field--computed">—</div>
         </div>
       </div>
+
+      <hr class="cds--section-divider"/>
+
+      <!-- Event Highlights / Future Recommendations & Decision -->
+      <div class="cds--data-table-heading" style="margin-bottom:var(--cds-spacing-05);">Event Highlights &amp; Recommendations</div>
+      
+      <div class="cds--form-item" style="margin-bottom:var(--cds-spacing-06);">
+        <label class="cds--label" for="input-highlights">
+          Event Highlights / Future Recommendations
+          <span class="cds--label__helper">— key meetings, large deals, activations, reasons for delta</span>
+        </label>
+        <textarea id="input-highlights" class="cds--textarea" rows="4" placeholder="# of meetings onsite / how did they perform&#10;Any large deals made/progressed&#10;Cool activation or creative idea implemented&#10;If we didn't meet projections, why not?"></textarea>
+      </div>
+
+      <div class="cds--form-item" style="margin-bottom:var(--cds-spacing-05);">
+        <label class="cds--label">
+          Plan Decision <span class="cds--label__helper">→ [Keep, Change, or Remove From Plan]</span>
+        </label>
+        <div class="cds--radio-group">
+          <label class="cds--radio-label">
+            <input type="radio" name="plan-decision" value="Keep" id="plan-decision-keep"/>
+            <span>Keep</span>
+          </label>
+          <label class="cds--radio-label">
+            <input type="radio" name="plan-decision" value="Change" id="plan-decision-change"/>
+            <span>Change</span>
+          </label>
+          <label class="cds--radio-label">
+            <input type="radio" name="plan-decision" value="Remove From Plan" id="plan-decision-remove"/>
+            <span>Remove From Plan</span>
+          </label>
+        </div>
+      </div>
     </div>
 
     <!-- KPI Table -->
@@ -877,12 +951,15 @@ document.addEventListener("DOMContentLoaded", () => {
   // 1. Always load KPI data first — independent of Airtable config
   loadFromDataJson();
 
-  // 2. Clear all OCR/AI fields on every page load — never persist between sessions
+  // 2. Clear all OCR/AI fields and inputs on every page load — never persist between sessions
   ["ocr-actual-ind","ocr-actual-sqor","ocr-named","ocr-horizon",
    "input-expected-ind","input-actual-ind"].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.value = ""; el.classList.remove("auto-filled"); }
   });
+  const hlEl = document.getElementById("input-highlights");
+  if (hlEl) hlEl.value = "";
+  document.querySelectorAll('input[name="plan-decision"]').forEach(r => { r.checked = false; });
 
   // 3. Airtable modal (first time only) — shown after data is already loading
   const alreadyConfigured = localStorage.getItem("at_configured");
@@ -1604,6 +1681,11 @@ function resetOcr() {
   document.getElementById("ocr-named-pct").textContent   = "—";
   document.getElementById("ocr-horizon-pct").textContent = "—";
 
+  // Reset highlights and decision
+  const hlEl = document.getElementById("input-highlights");
+  if (hlEl) hlEl.value = "";
+  document.querySelectorAll('input[name="plan-decision"]').forEach(r => { r.checked = false; });
+
   // Reset OCR upload area
   const fileInput = document.getElementById("ocr-file-input");
   if (fileInput) fileInput.value = "";
@@ -2014,6 +2096,17 @@ function buildMainSlide(pptx, ev) {
   const namedRaw    = parseFloat(document.getElementById("ocr-named").value);
   const horizonRaw  = parseFloat(document.getElementById("ocr-horizon").value);
 
+  // Read highlights and plan decision
+  const highlightsInput = (document.getElementById("input-highlights")?.value || "").trim();
+  const highlightsText = highlightsInput || (
+    "# of meetings onsite / how did they perform\n" +
+    "Any large deals made/progressed\n" +
+    "Cool activation or creative idea implemented\n" +
+    "If we didn't meet projections, why not?"
+  );
+  const selectedDecisionEl = document.querySelector('input[name="plan-decision"]:checked');
+  const decisionText = selectedDecisionEl ? selectedDecisionEl.value : "[Keep, Change, or Remove From Plan]";
+
   // Individuals
   const expInd   = !isNaN(expIndRaw) ? expIndRaw.toLocaleString("en-US") : "";
   const actInd   = !isNaN(actIndRaw) ? actIndRaw.toLocaleString("en-US") : "";
@@ -2175,15 +2268,8 @@ function buildMainSlide(pptx, ev) {
   //    x=0.80cm  y=12.89cm  w=9.5cm  h=5.21cm
   slide.addTable([
     [ hCell("Event Highlights / Future Recommendations", { fontSize: 10 }) ],
-    [ dCell(
-        "# of meetings onsite / how did they perform\n" +
-        "Any large deals made/progressed\n" +
-        "Cool activation or creative idea implemented\n" +
-        "If we didn't meet projections, why not?",
-        { align: "left", fontSize: 9, valign: "top" }
-      )
-    ],
-    [ mCell("[Keep, Change, or Remove From Plan]", { fontSize: 9 }) ],
+    [ dCell(highlightsText, { align: "left", fontSize: 9, valign: "top" }) ],
+    [ mCell(decisionText, { fontSize: 9 }) ],
   ], {
     x: cm(0.80), y: cm(12.89), w: cm(9.5),
     rowH: [0.4, 2.6, 0.4], ...tblFont,
