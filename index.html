@@ -1223,10 +1223,10 @@ function parseSheet(ws, sheetName, filename) {
 
   // Resolve column indices
   const icol = {
-    name:  colIndex(headers, "event name"),
-    brief: colIndex(headers, "brief"),
-    ut15:  colIndex(headers, "ut 15"),
-    ut17:  colIndex(headers, "ut 17"),
+    name:  colIndex(headers, "event name", "activity name", "event", "activity"),
+    brief: colIndex(headers, "brief", "brief id", "emb", "emb #", "emb#"),
+    ut15:  colIndex(headers, "ut 15", "ut15"),
+    ut17:  colIndex(headers, "ut 17", "ut17"),
     cq:    colIndexExact(headers, "cq"),
     nq:    colIndexExact(headers, "nq"),
     nq1:   colIndexExact(headers, "nq+1"),
@@ -1236,7 +1236,8 @@ function parseSheet(ws, sheetName, filename) {
 
   if (icol.name === null || icol.brief === null) return;
 
-  const quarter = ["Q2","Q3","Q4","Q1"].find(q => sheetName.toUpperCase().includes(q)) || "Q2";
+  const fileAndSheet = (filename + " " + sheetName).toUpperCase();
+  const quarter = ["Q1","Q2","Q3","Q4"].find(q => fileAndSheet.includes(q)) || "Q2";
 
   let currentName = null, currentBrief = null;
 
@@ -1286,7 +1287,9 @@ function parseSheet(ws, sheetName, filename) {
 function findHeaderRow(rows) {
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i].map(c => (c != null ? String(c).trim().toLowerCase() : ""));
-    if (r.includes("event name") && r.includes("brief")) return i;
+    const hasName = r.some(x => ["event name", "activity name", "event", "activity"].includes(x));
+    const hasBrief = r.some(x => ["brief", "brief id", "emb", "emb #", "emb#"].includes(x));
+    if (hasName && hasBrief) return i;
   }
   return null;
 }
@@ -1358,9 +1361,10 @@ async function searchAirtable(q) {
   const token = localStorage.getItem("at_token") || "";
   if (!token) return [];
   try {
-    // Search by name OR brief code
+    // Escape double quotes and backslashes for Airtable formula strings
+    const safeQ = q.replace(/\\/g, "\\\\").replace(/"/g, '\\"').toLowerCase();
     const filter = encodeURIComponent(
-      `OR(FIND(LOWER("${q}"),LOWER({${AT_NAME_FIELD}})),FIND(LOWER("${q}"),LOWER({${AT_BRIEF_FIELD}})))`
+      `OR(FIND("${safeQ}",LOWER({${AT_NAME_FIELD}}&"")),FIND("${safeQ}",LOWER({${AT_BRIEF_FIELD}}&"")))`
     );
     const url = `https://api.airtable.com/v0/${AT_BASE_ID}/${AT_TABLE_ID}?filterByFormula=${filter}&maxRecords=30&fields[]=${encodeURIComponent(AT_NAME_FIELD)}&fields[]=${encodeURIComponent(AT_BRIEF_FIELD)}`;
     const resp = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
@@ -1368,7 +1372,7 @@ async function searchAirtable(q) {
     const data = await resp.json();
     return (data.records || []).map(r => ({
       event_name: r.fields[AT_NAME_FIELD] || "",
-      brief: r.fields[AT_BRIEF_FIELD] || "",
+      brief: (r.fields[AT_BRIEF_FIELD] || "").trim(),
     })).filter(r => r.brief);
   } catch (e) {
     return [];
@@ -1567,16 +1571,25 @@ async function selectEvent(ev) {
   showOverlay(`Loading KPIs for ${ev.event_name}…`);
   try {
     const key = ev.brief.toUpperCase();
-    const eventData = allEvents[key];
-    if (!eventData) throw new Error("Event not found in memory");
+    let eventData = allEvents[key];
 
     // Try to enrich with Airtable data
     const atData = await fetchAirtableForBrief(ev.brief);
     if (atData) {
-      // Don't overwrite event_name with empty string — keep the one from the spreadsheet
+      if (!eventData) {
+        // Event exists in Airtable but might not have KPI rows in spreadsheets
+        eventData = {
+          event_name: atData.event_name || ev.event_name || ev.brief,
+          brief: ev.brief,
+          kpi_rows: [],
+        };
+        allEvents[key] = eventData;
+      }
       if (!atData.event_name) delete atData.event_name;
       Object.assign(eventData, atData);
     }
+
+    if (!eventData) throw new Error("Event not found in memory");
 
     selectedEvent = eventData;
     hideOverlay();

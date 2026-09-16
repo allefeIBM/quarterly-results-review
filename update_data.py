@@ -25,7 +25,9 @@ BASE_DIR = Path(__file__).parent
 def find_header_row(rows):
     for i, row in enumerate(rows):
         r = [str(c).strip().lower() if c else "" for c in row]
-        if "event name" in r and "brief" in r:
+        has_name = any(x in r for x in ["event name", "activity name", "event", "activity"])
+        has_brief = any(x in r for x in ["brief", "brief id", "emb", "emb #", "emb#"])
+        if has_name and has_brief:
             return i
     return None
 
@@ -104,10 +106,10 @@ def extract_all_events():
 
             headers = [str(c).strip() if c else "" for c in rows[hi]]
             icol = {
-                "name":  col_index(headers, "event name"),
-                "brief": col_index(headers, "brief"),
-                "ut15":  col_index(headers, "ut 15"),
-                "ut17":  col_index(headers, "ut 17"),
+                "name":  col_index(headers, "event name", "activity name", "event", "activity"),
+                "brief": col_index(headers, "brief", "brief id", "emb", "emb #", "emb#"),
+                "ut15":  col_index(headers, "ut 15", "ut15"),
+                "ut17":  col_index(headers, "ut 17", "ut17"),
                 "cq":    col_index_exact(headers, "cq"),
                 "nq":    col_index_exact(headers, "nq"),
                 "nq1":   col_index_exact(headers, "nq+1"),
@@ -118,8 +120,10 @@ def extract_all_events():
             if icol["name"] is None or icol["brief"] is None:
                 continue
 
+            # Determine quarter from sheet name or filename
+            file_and_sheet = f"{filename} {sheet_name}".upper()
             quarter = next(
-                (q for q in ["Q2", "Q3", "Q4", "Q1"] if q in sheet_name.upper()), "Q2"
+                (q for q in ["Q1", "Q2", "Q3", "Q4"] if q in file_and_sheet), "Q1" if "Q1" in file_and_sheet else "Q2"
             )
             cur_name = cur_brief = None
 
