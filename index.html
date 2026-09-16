@@ -2122,11 +2122,9 @@ function buildMainSlide(pptx, ev) {
     ? ((actIndRaw - expIndRaw >= 0 ? "+" : "") + (actIndRaw - expIndRaw).toLocaleString("en-US"))
     : "";
 
-  // SQOR
-  const expSqorRaw  = (ev.kpi_rows || []).reduce((s, r) => {
-    const key = { CQ: "cq", NQ: "nq", "NQ+1": "nq1", "NQ+2": "nq2" }[sqorBucket];
-    return s + (key ? (r[key] || 0) : 0);
-  }, 0);
+  // SQOR (Cumulative sum according to elapsed quarters)
+  const expSqorVal = calcExpectedSqorValue(ev, sqorBucket);
+  const expSqorRaw = expSqorVal > 0 ? expSqorVal : 0;
   const actSqorFmt  = !isNaN(actSqorRaw) ? fmtCur(actSqorRaw) : "";
   const deltaSqorFmt = (!isNaN(actSqorRaw) && expSqorRaw)
     ? ((actSqorRaw - expSqorRaw >= 0 ? "+" : "") + fmtCur(Math.abs(actSqorRaw - expSqorRaw)))
@@ -2285,10 +2283,26 @@ function buildMainSlide(pptx, ev) {
   });
 }
 
+function calcExpectedSqorValue(ev, bucket) {
+  // Cumulative columns depending on current quarter relative to event quarter:
+  // Event in CQ, current in CQ   -> CQ
+  // Event in CQ, current in NQ   -> CQ + NQ
+  // Event in CQ, current in NQ+1 -> CQ + NQ + NQ+1
+  // Event in CQ, current in NQ+2 -> CQ + NQ + NQ+1 + NQ+2
+  const bucketKeys = {
+    "CQ":   ["cq"],
+    "NQ":   ["cq", "nq"],
+    "NQ+1": ["cq", "nq", "nq1"],
+    "NQ+2": ["cq", "nq", "nq1", "nq2"],
+  }[bucket] || ["cq"];
+
+  return (ev.kpi_rows || []).reduce((sum, r) => {
+    return sum + bucketKeys.reduce((rowSum, k) => rowSum + (r[k] || 0), 0);
+  }, 0);
+}
+
 function calcExpectedSqor(ev, bucket) {
-  const key = { CQ: "cq", NQ: "nq", "NQ+1": "nq1", "NQ+2": "nq2" }[bucket];
-  if (!key) return "";
-  const total = (ev.kpi_rows || []).reduce((s, r) => s + (r[key] || 0), 0);
+  const total = calcExpectedSqorValue(ev, bucket);
   return total ? fmtCur(total) : "";
 }
 
