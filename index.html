@@ -1478,6 +1478,12 @@ async function selectEvent(ev) {
   searchInput.value = ev.brief;
   selectedEvent = null;
 
+  // Reset screenshot, OCR, and manual inputs when a new event is selected
+  resetOcr();
+  document.getElementById("input-actual-ind").value = "";
+  document.getElementById("ind-delta").textContent = "—";
+  document.getElementById("ind-delta").className = "cds--display-field cds--display-field--empty";
+
   showOverlay(`Loading KPIs for ${ev.event_name}…`);
   try {
     const key = ev.brief.toUpperCase();
