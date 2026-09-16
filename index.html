@@ -286,6 +286,13 @@
     .cds--display-field.cds--display-field--negative { color: var(--cds-support-error); }
     .cds--display-field.cds--display-field--computed { color: var(--cds-interactive); }
     .cds--display-field.cds--display-field--empty { color: var(--cds-text-placeholder); font-weight: 400; font-family: inherit; }
+    /* ROI display fields are two-line — allow auto height */
+    .cds--display-field--roi {
+      height: auto; min-height: 40px;
+      padding: var(--cds-spacing-03) var(--cds-spacing-04);
+      flex-direction: column; align-items: flex-start; justify-content: center;
+      line-height: 1.4; gap: 2px;
+    }
 
     /* ── Grid ────────────────────────────────────────────────── */
     .cds--grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--cds-spacing-05); }
@@ -500,6 +507,20 @@
       font-size: 14px;
     }
     .cds--btn--sm .cds--btn__icon { position: static; }
+    .cds--btn--tertiary {
+      background: none;
+      color: var(--cds-button-tertiary, #0f62fe);
+      border: 1px solid var(--cds-button-tertiary, #0f62fe);
+    }
+    .cds--btn--tertiary:hover:not(:disabled) {
+      background: var(--cds-button-tertiary-hover, #0353e9);
+      color: var(--cds-text-inverse, #ffffff);
+    }
+    .cds--btn--tertiary:disabled {
+      color: #8d8d8d;
+      border-color: #8d8d8d;
+      cursor: not-allowed;
+    }
     .cds--btn--ghost {
       background: none; color: var(--cds-interactive);
       padding: 0 var(--cds-spacing-04);
@@ -790,12 +811,28 @@
           <input type="number" id="ocr-horizon" class="cds--text-input" min="0" step="1" placeholder="—" oninput="syncOcrToFields()"/>
         </div>
         <div class="cds--form-item">
+          <label class="cds--label" for="ocr-cost">Event Cost <span class="cds--label__helper">→ Total Investment (USD $)</span></label>
+          <input type="number" id="ocr-cost" class="cds--text-input" min="0" step="1" placeholder="—" oninput="syncOcrToFields()"/>
+        </div>
+        <div class="cds--form-item">
+          <label class="cds--label" for="ocr-wins">Wins <span class="cds--label__helper">→ Closed Revenue (USD $)</span></label>
+          <input type="number" id="ocr-wins" class="cds--text-input" min="0" step="1" placeholder="—" oninput="syncOcrToFields()"/>
+        </div>
+        <div class="cds--form-item">
           <label class="cds--label">% Named Accounts <span class="cds--label__helper">(calculated)</span></label>
           <div id="ocr-named-pct" class="cds--display-field cds--display-field--empty cds--display-field--computed">—</div>
         </div>
         <div class="cds--form-item">
           <label class="cds--label">% Horizon Accounts <span class="cds--label__helper">(calculated)</span></label>
           <div id="ocr-horizon-pct" class="cds--display-field cds--display-field--empty cds--display-field--computed">—</div>
+        </div>
+        <div class="cds--form-item">
+          <label class="cds--label">Return on Investment - SQOR <span class="cds--label__helper">(SQO Creation ÷ Event Cost)</span></label>
+          <div id="ocr-roi-sqor" class="cds--display-field cds--display-field--roi cds--display-field--empty cds--display-field--computed">—</div>
+        </div>
+        <div class="cds--form-item">
+          <label class="cds--label">Return on Investment - Win <span class="cds--label__helper">(Wins ÷ Event Cost)</span></label>
+          <div id="ocr-roi-win" class="cds--display-field cds--display-field--roi cds--display-field--empty cds--display-field--computed">—</div>
         </div>
       </div>
 
@@ -869,11 +906,18 @@
       The EPM screenshot placeholder will be kept in the slide.
     </p>
     <p class="cds--form__helper-text" style="margin-bottom:var(--cds-spacing-06);">Requires: spreadsheets loaded + event selected.</p>
-    <button class="cds--btn cds--btn--primary" id="generate-btn" disabled onclick="generatePresentation()">
-      Generate and Download Presentation
-      <!-- ArrowRight icon -->
-      <svg class="cds--btn__icon" width="16" height="16" viewBox="0 0 32 32" fill="currentColor"><path d="M18 6l-1.4 1.4 8.6 8.6H2v2h23.2l-8.6 8.6L18 28l11-11z"/></svg>
-    </button>
+    <div style="display:flex; gap:var(--cds-spacing-05); align-items:center; flex-wrap:wrap;">
+      <button class="cds--btn cds--btn--primary" id="generate-btn" disabled onclick="generatePresentation()">
+        Generate and Download Presentation
+        <!-- ArrowRight icon -->
+        <svg class="cds--btn__icon" width="16" height="16" viewBox="0 0 32 32" fill="currentColor"><path d="M18 6l-1.4 1.4 8.6 8.6H2v2h23.2l-8.6 8.6L18 28l11-11z"/></svg>
+      </button>
+      <button class="cds--btn cds--btn--tertiary" id="reset-all-btn" onclick="clearAndResetAll()">
+        Limpar dados e pesquisar novo evento
+        <!-- Reset icon -->
+        <svg class="cds--btn__icon" width="16" height="16" viewBox="0 0 32 32" fill="currentColor"><path d="M18 28A12 12 0 106 16v6.2l-3.6-3.6L1 20l6 6 6-6-1.4-1.4L8 22.2V16a10 10 0 1110 10z"/></svg>
+      </button>
+    </div>
     <div class="cds--status-bar" id="status-bar">
       <div class="cds--loading" id="status-spinner" style="display:none"></div>
       <span id="status-text"></span>
@@ -953,7 +997,7 @@ document.addEventListener("DOMContentLoaded", () => {
   loadFromDataJson();
 
   // 2. Clear all OCR/AI fields and inputs on every page load — never persist between sessions
-  ["ocr-actual-ind","ocr-actual-sqor","ocr-named","ocr-horizon",
+  ["ocr-actual-ind","ocr-actual-sqor","ocr-named","ocr-horizon","ocr-cost","ocr-wins",
    "input-expected-ind","input-actual-ind"].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.value = ""; el.classList.remove("auto-filled"); }
@@ -961,6 +1005,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const hlEl = document.getElementById("input-highlights");
   if (hlEl) hlEl.value = "";
   document.querySelectorAll('input[name="plan-decision"]').forEach(r => { r.checked = false; });
+  const roiSqorEl = document.getElementById("ocr-roi-sqor");
+  if (roiSqorEl) { roiSqorEl.textContent = "—"; roiSqorEl.className = "cds--display-field cds--display-field--roi cds--display-field--empty cds--display-field--computed"; }
+  const roiWinEl = document.getElementById("ocr-roi-win");
+  if (roiWinEl) { roiWinEl.textContent = "—"; roiWinEl.className = "cds--display-field cds--display-field--roi cds--display-field--empty cds--display-field--computed"; }
 
   // 3. Airtable modal (first time only) — shown after data is already loading
   const alreadyConfigured = localStorage.getItem("at_configured");
@@ -1610,6 +1658,12 @@ function renderSelectedEvent(ev) {
   document.getElementById("selected-event-info").style.display = "block";
   document.getElementById("ocr-section").style.display = "block";
 
+  // Update progress indicator to step 2
+  const p1 = document.getElementById("progress-step-1");
+  const p2 = document.getElementById("progress-step-2");
+  if (p1) p1.className = "cds--progress-step cds--progress-step--complete";
+  if (p2) p2.className = "cds--progress-step cds--progress-step--current";
+
   // Airtable fields
   const atNameEl = document.getElementById("at-event-name");
   atNameEl.textContent = ev.event_name || "—";
@@ -1658,7 +1712,7 @@ function updateDelta() {
   }
 }
 
-document.getElementById("clear-event").addEventListener("click", () => {
+function clearAndResetAll() {
   selectedEvent = null;
   searchInput.value = "";
   document.getElementById("selected-event-info").style.display = "none";
@@ -1668,11 +1722,21 @@ document.getElementById("clear-event").addEventListener("click", () => {
   document.getElementById("input-expected-ind").value = "";
   document.getElementById("input-actual-ind").value = "";
   document.getElementById("ind-delta").textContent = "—";
-  document.getElementById("ind-delta").style.color = "#161616";
+  document.getElementById("ind-delta").className = "cds--display-field cds--display-field--empty";
+  
+  // Return progress indicator to Step 1
+  const p1 = document.getElementById("progress-step-1");
+  const p2 = document.getElementById("progress-step-2");
+  if (p1) p1.className = "cds--progress-step cds--progress-step--current";
+  if (p2) p2.className = "cds--progress-step cds--progress-step--inactive";
+
   resetOcr();
   clearStatus();
   updateGenerateBtn();
-});
+  closeDropdown();
+}
+
+document.getElementById("clear-event").addEventListener("click", clearAndResetAll);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // OCR drag-and-drop events
@@ -1693,12 +1757,18 @@ function resetOcr() {
   uploadedScreenshotDataUrl = null;
 
   // Clear all result fields
-  ["ocr-actual-ind","ocr-actual-sqor","ocr-named","ocr-horizon"].forEach(id => {
+  ["ocr-actual-ind","ocr-actual-sqor","ocr-named","ocr-horizon","ocr-cost","ocr-wins"].forEach(id => {
     const el = document.getElementById(id);
     if (el) { el.value = ""; el.classList.remove("auto-filled"); }
   });
-  document.getElementById("ocr-named-pct").textContent   = "—";
-  document.getElementById("ocr-horizon-pct").textContent = "—";
+  const namedPctEl = document.getElementById("ocr-named-pct");
+  if (namedPctEl) { namedPctEl.textContent = "—"; namedPctEl.className = "cds--display-field cds--display-field--empty cds--display-field--computed"; }
+  const horizonPctEl = document.getElementById("ocr-horizon-pct");
+  if (horizonPctEl) { horizonPctEl.textContent = "—"; horizonPctEl.className = "cds--display-field cds--display-field--empty cds--display-field--computed"; }
+  const roiSqorEl = document.getElementById("ocr-roi-sqor");
+  if (roiSqorEl) { roiSqorEl.textContent = "—"; roiSqorEl.className = "cds--display-field cds--display-field--roi cds--display-field--empty cds--display-field--computed"; }
+  const roiWinEl = document.getElementById("ocr-roi-win");
+  if (roiWinEl) { roiWinEl.textContent = "—"; roiWinEl.className = "cds--display-field cds--display-field--roi cds--display-field--empty cds--display-field--computed"; }
 
   // Reset highlights and decision
   const hlEl = document.getElementById("input-highlights");
@@ -1737,9 +1807,12 @@ function toggleAiAccordion() {
 
 // Called whenever any OCR field is edited manually — keeps percentages live
 function syncOcrToFields() {
-  const ind  = parseFloat(document.getElementById("ocr-actual-ind").value);
+  const ind     = parseFloat(document.getElementById("ocr-actual-ind").value);
+  const sqor    = parseFloat(document.getElementById("ocr-actual-sqor").value);
   const named   = parseFloat(document.getElementById("ocr-named").value);
   const horizon = parseFloat(document.getElementById("ocr-horizon").value);
+  const cost    = parseFloat(document.getElementById("ocr-cost").value);
+  const wins    = parseFloat(document.getElementById("ocr-wins").value);
 
   // Mirror attendees → main Actual Individuals field + recalc delta
   if (!isNaN(ind)) {
@@ -1751,13 +1824,49 @@ function syncOcrToFields() {
   const namedPctEl = document.getElementById("ocr-named-pct");
   if (!isNaN(named) && !isNaN(ind) && ind > 0) {
     namedPctEl.textContent = (named / ind * 100).toFixed(1) + "%  (" + named + "/" + ind + ")";
-  } else { namedPctEl.textContent = "—"; }
+    namedPctEl.className = "cds--display-field cds--display-field--computed";
+  } else {
+    namedPctEl.textContent = "—";
+    namedPctEl.className = "cds--display-field cds--display-field--empty cds--display-field--computed";
+  }
 
   // Recalculate % Horizon
   const horizonPctEl = document.getElementById("ocr-horizon-pct");
   if (!isNaN(horizon) && !isNaN(ind) && ind > 0) {
     horizonPctEl.textContent = (horizon / ind * 100).toFixed(1) + "%  (" + horizon + "/" + ind + ")";
-  } else { horizonPctEl.textContent = "—"; }
+    horizonPctEl.className = "cds--display-field cds--display-field--computed";
+  } else {
+    horizonPctEl.textContent = "—";
+    horizonPctEl.className = "cds--display-field cds--display-field--empty cds--display-field--computed";
+  }
+
+  // Recalculate Return on Investment - SQOR = SQO Creation ÷ Event Cost
+  const roiSqorEl = document.getElementById("ocr-roi-sqor");
+  if (!isNaN(sqor) && !isNaN(cost) && cost > 0) {
+    const mult = sqor / cost;
+    const gainPct = ((sqor - cost) / cost) * 100;
+    const sign = gainPct >= 0 ? "+" : "";
+    const gainFmt = gainPct.toLocaleString("en-US", { maximumFractionDigits: 0 });
+    roiSqorEl.innerHTML = `<span style="font-size:15px">${mult.toFixed(1)}x</span><span style="font-size:12px;font-weight:400">${sign}${gainFmt}%</span>`;
+    roiSqorEl.className = "cds--display-field cds--display-field--roi cds--display-field--computed";
+  } else {
+    roiSqorEl.textContent = "—";
+    roiSqorEl.className = "cds--display-field cds--display-field--roi cds--display-field--empty cds--display-field--computed";
+  }
+
+  // Recalculate Return on Investment - Win = Wins ÷ Event Cost
+  const roiWinEl = document.getElementById("ocr-roi-win");
+  if (!isNaN(wins) && !isNaN(cost) && cost > 0) {
+    const mult = wins / cost;
+    const gainPct = ((wins - cost) / cost) * 100;
+    const sign = gainPct >= 0 ? "+" : "";
+    const gainFmt = gainPct.toLocaleString("en-US", { maximumFractionDigits: 0 });
+    roiWinEl.innerHTML = `<span style="font-size:15px">${mult.toFixed(1)}x</span><span style="font-size:12px;font-weight:400">${sign}${gainFmt}%</span>`;
+    roiWinEl.className = "cds--display-field cds--display-field--roi cds--display-field--computed";
+  } else {
+    roiWinEl.textContent = "—";
+    roiWinEl.className = "cds--display-field cds--display-field--roi cds--display-field--empty cds--display-field--computed";
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1829,7 +1938,7 @@ async function handleOcrFile(file) {
     // Parse the JSON returned by the AI
     // Strategy: 1) try strict JSON parse, 2) try extracting JSON object via regex,
     // 3) fall back to key:value line parsing for when the AI returns free text
-    let ex = { individuals: null, sqor: null, named: null, horizon: null };
+    let ex = { individuals: null, sqor: null, named: null, horizon: null, cost: null, wins: null };
     try {
       // Strip markdown code fences if present
       const clean = rawText.replace(/^```[a-z]*\n?/i, "").replace(/\n?```$/, "").trim();
@@ -1841,7 +1950,7 @@ async function handleOcrFile(file) {
         try { ex = JSON.parse(jsonMatch[0]); } catch (_) {}
       }
       // If still empty, parse free-text key: value lines
-      if (ex.individuals === null && ex.sqor === null && ex.named === null && ex.horizon === null) {
+      if (ex.individuals === null && ex.sqor === null && ex.named === null && ex.horizon === null && ex.cost === null && ex.wins === null) {
         const lines = rawText.split(/\n/);
         for (const line of lines) {
           const kv = line.match(/^"?(\w+)"?\s*[=:]\s*([0-9,.$]+)/i);
@@ -1853,15 +1962,14 @@ async function handleOcrFile(file) {
           else if (key === "sqor")   ex.sqor = val;
           else if (key === "named")  ex.named = val;
           else if (key === "horizon") ex.horizon = val;
+          else if (key === "cost" || key === "event_cost") ex.cost = val;
+          else if (key === "wins" || key === "win") ex.wins = val;
         }
       }
     }
 
     // Safety net: convert $M/$K suffixes in sqor in case the AI didn't expand them
-    // e.g. 2.1 when image shows $2.1M → treat as 2100000 only if value looks like M-scale
-    // The AI is instructed to expand, but if it returns a small decimal we convert here too.
-    if (ex.sqor !== null) {
-      // If the raw text contained "M" near the sqor value, multiply
+    if (ex.sqor !== null && ex.sqor !== undefined) {
       const sqorMMatch = rawText.match(/sqo[^"]*[:\s]+\$?([\d.]+)\s*[Mm]/i);
       const sqorKMatch = rawText.match(/sqo[^"]*[:\s]+\$?([\d.]+)\s*[Kk]/i);
       if (sqorMMatch) {
@@ -1869,16 +1977,41 @@ async function handleOcrFile(file) {
       } else if (sqorKMatch) {
         ex.sqor = Math.round(parseFloat(sqorKMatch[1]) * 1_000);
       } else if (ex.sqor < 1000 && ex.sqor > 0) {
-        // Value looks suspiciously small for a dollar amount — likely the AI
-        // returned the M-notation number without multiplying (e.g. 2.1 instead of 2100000)
         ex.sqor = Math.round(ex.sqor * 1_000_000);
+      }
+    }
+
+    // Safety net: convert $M/$K suffixes in cost
+    if (ex.cost !== null && ex.cost !== undefined) {
+      const costMMatch = rawText.match(/cost[^"]*[:\s]+\$?([\d.]+)\s*[Mm]/i);
+      const costKMatch = rawText.match(/cost[^"]*[:\s]+\$?([\d.]+)\s*[Kk]/i);
+      if (costMMatch) {
+        ex.cost = Math.round(parseFloat(costMMatch[1]) * 1_000_000);
+      } else if (costKMatch) {
+        ex.cost = Math.round(parseFloat(costKMatch[1]) * 1_000);
+      } else if (ex.cost < 500 && ex.cost > 0) {
+        // e.g. 74.2 representing 74.2K
+        ex.cost = Math.round(ex.cost * 1_000);
+      }
+    }
+
+    // Safety net: convert $M/$K suffixes in wins
+    if (ex.wins !== null && ex.wins !== undefined) {
+      const winMMatch = rawText.match(/win[^"]*[:\s]+\$?([\d.]+)\s*[Mm]/i);
+      const winKMatch = rawText.match(/win[^"]*[:\s]+\$?([\d.]+)\s*[Kk]/i);
+      if (winMMatch) {
+        ex.wins = Math.round(parseFloat(winMMatch[1]) * 1_000_000);
+      } else if (winKMatch) {
+        ex.wins = Math.round(parseFloat(winKMatch[1]) * 1_000);
+      } else if (ex.wins < 1000 && ex.wins > 0) {
+        ex.wins = Math.round(ex.wins * 1_000_000);
       }
     }
 
     // Helper: fill a field and mark it auto-filled
     function fill(id, val) {
       const el = document.getElementById(id);
-      if (val !== null && val !== undefined) { el.value = val; el.classList.add("auto-filled"); }
+      if (val !== null && val !== undefined && !isNaN(val)) { el.value = val; el.classList.add("auto-filled"); }
       else { el.value = ""; el.classList.remove("auto-filled"); }
     }
 
@@ -1886,12 +2019,16 @@ async function handleOcrFile(file) {
     fill("ocr-actual-sqor", ex.sqor);
     fill("ocr-named",       ex.named);
     fill("ocr-horizon",     ex.horizon);
+    fill("ocr-cost",        ex.cost);
+    fill("ocr-wins",        ex.wins);
 
     syncOcrToFields();
 
     const found = [
       ex.individuals != null ? `Attendees: ${ex.individuals}` : null,
-      ex.sqor        != null ? `SQO: $${Number(ex.sqor).toLocaleString("en-US")}` : null,
+      ex.sqor        != null ? `SQO: $${Number(ex.sqor).toLocaleString("en-US", { maximumFractionDigits: 0 })}` : null,
+      ex.cost        != null ? `Cost: $${Number(ex.cost).toLocaleString("en-US", { maximumFractionDigits: 0 })}` : null,
+      ex.wins        != null ? `Wins: $${Number(ex.wins).toLocaleString("en-US", { maximumFractionDigits: 0 })}` : null,
       ex.named       != null ? `Named: ${ex.named}` : null,
       ex.horizon     != null ? `Horizon: ${ex.horizon}` : null,
     ].filter(Boolean);
@@ -1908,9 +2045,9 @@ async function handleOcrFile(file) {
 
   } catch (err) {
     let msg = "Unknown error — please try again";
-    if (err && typeof err.message === "string" && err.message.trim()) {
+    if (err && typeof err.message === "string" && err.message.trim() && err.message !== "undefined") {
       msg = err.message;
-    } else if (err && typeof err === "string" && err.trim()) {
+    } else if (err && typeof err === "string" && err.trim() && err !== "undefined") {
       msg = err;
     }
     progressEl.classList.remove("cds--inline-notification--info","cds--inline-notification--success");
@@ -2116,6 +2253,8 @@ function buildMainSlide(pptx, ev) {
   const actSqorRaw  = parseFloat(document.getElementById("ocr-actual-sqor").value);
   const namedRaw    = parseFloat(document.getElementById("ocr-named").value);
   const horizonRaw  = parseFloat(document.getElementById("ocr-horizon").value);
+  const costRaw     = parseFloat(document.getElementById("ocr-cost").value);
+  const winsRaw     = parseFloat(document.getElementById("ocr-wins").value);
 
   // Read highlights and plan decision
   const highlightsInput = (document.getElementById("input-highlights")?.value || "").trim();
@@ -2152,6 +2291,25 @@ function buildMainSlide(pptx, ev) {
   const horizonPct = (!isNaN(horizonRaw) && !isNaN(actIndRaw) && actIndRaw > 0)
     ? (horizonRaw / actIndRaw * 100).toFixed(1) + "%\n(" + horizonRaw + "/" + actIndRaw + ")"
     : "X%";
+
+  // ROI Computations
+  let roiSqorVal = "—";
+  if (!isNaN(actSqorRaw) && !isNaN(costRaw) && costRaw > 0) {
+    const mult = (actSqorRaw / costRaw).toFixed(1) + "x";
+    const gainNum = ((actSqorRaw - costRaw) / costRaw) * 100;
+    const sign = gainNum >= 0 ? "+" : "";
+    const gainFmt = gainNum.toLocaleString("en-US", { maximumFractionDigits: 0 });
+    roiSqorVal = `${mult}\n${sign}${gainFmt}%`;
+  }
+
+  let roiWinVal = "—";
+  if (!isNaN(winsRaw) && !isNaN(costRaw) && costRaw > 0) {
+    const mult = (winsRaw / costRaw).toFixed(1) + "x";
+    const gainNum = ((winsRaw - costRaw) / costRaw) * 100;
+    const sign = gainNum >= 0 ? "+" : "";
+    const gainFmt = gainNum.toLocaleString("en-US", { maximumFractionDigits: 0 });
+    roiWinVal = `${mult}\n${sign}${gainFmt}%`;
+  }
 
   // Shared table style helpers
   const DARK  = "1F3864";   // IBM dark blue — header bg
@@ -2281,18 +2439,48 @@ function buildMainSlide(pptx, ev) {
     [ dCell(horizonPct, { fontSize: horizonPct === "X%" ? 13 : 10, bold: true }) ],
   ], {
     x: cm(5.40), y: 3.28, w: cm(4.6),
-    rowH: [0.42, 0.42], ...tblFont,
+    rowH: [0.36, 0.36], ...tblFont,
+  });
+
+  // ── Table ROI - SQOR (2×1)
+  //    x=0.42cm, y=4.15" (10.54cm), w=4.6cm (1.81")
+  const roiSqorLines = roiSqorVal.split("\n");
+  const roiSqorCellText = roiSqorLines.length > 1
+    ? [ { text: roiSqorLines[0], options: { bold: true, breakLine: true } },
+        { text: roiSqorLines[1], options: { bold: true } } ]
+    : roiSqorVal;
+  slide.addTable([
+    [ mCell("Return on Investment - SQOR\n(SQO Creation ÷ Event Cost)", { fontSize: 7.5 }) ],
+    [ { text: roiSqorCellText, options: { fontSize: roiSqorVal === "—" ? 11 : 10, bold: true, valign: "middle", align: "center" } } ],
+  ], {
+    x: cm(0.42), y: 4.15, w: cm(4.6),
+    rowH: [0.36, 0.44], ...tblFont,
+  });
+
+  // ── Table ROI - Win (2×1)
+  //    x=5.40cm, y=4.15" (10.54cm), w=4.6cm (1.81")
+  const roiWinLines = roiWinVal.split("\n");
+  const roiWinCellText = roiWinLines.length > 1
+    ? [ { text: roiWinLines[0], options: { bold: true, breakLine: true } },
+        { text: roiWinLines[1], options: { bold: true } } ]
+    : roiWinVal;
+  slide.addTable([
+    [ mCell("Return on Investment - Win\n(Wins ÷ Event Cost)", { fontSize: 7.5 }) ],
+    [ { text: roiWinCellText, options: { fontSize: roiWinVal === "—" ? 11 : 10, bold: true, valign: "middle", align: "center" } } ],
+  ], {
+    x: cm(5.40), y: 4.15, w: cm(4.6),
+    rowH: [0.36, 0.44], ...tblFont,
   });
 
   // ── Table 15 (3×1) — Event Highlights / Future Recommendations (id=16)
-  //    x=0.42cm, y=4.40" (11.18cm), w=9.87cm (3.89"), h=2.65" (6.73cm) — ends at y=7.05" on a 7.5" slide
+  //    x=0.42cm, y=5.00" (12.70cm), w=9.87cm (3.89"), ends cleanly before 7.5" slide bottom
   slide.addTable([
     [ hCell("Event Highlights / Future Recommendations", { fontSize: 9 }) ],
     [ dCell(highlightsText, { align: "left", fontSize: 8.5, valign: "top" }) ],
     [ mCell(decisionText, { fontSize: 9 }) ],
   ], {
-    x: cm(0.42), y: 4.40, w: cm(9.87),
-    rowH: [0.32, 2.0, 0.32], ...tblFont,
+    x: cm(0.42), y: 5.00, w: cm(9.87),
+    rowH: [0.28, 1.70, 0.28], ...tblFont,
   });
 }
 

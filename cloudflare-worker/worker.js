@@ -10,11 +10,13 @@
 const GEMINI_MODEL = "gemini-2.0-flash";
 const GEMINI_URL   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-const PROMPT = `Look at this image. Find and return these four numbers:
+const PROMPT = `Look at this image. Find and return these numbers:
 1. The integer next to "Attendees" or "Total Attendees"
 2. The dollar amount next to "SQO Creation" — convert to full number (e.g. $2.1M = 2100000, $0.7M = 700000, $1.5K = 1500). Return the full integer, no $ or suffixes.
 3. The integer next to "Named Accounts"
 4. The integer next to "Horizon Accounts"
+5. The dollar amount next to "Event Cost" or "Cost" — convert to full integer (e.g. $74,245 = 74245, $74.2K = 74200, $0.1M = 100000). Return the full integer, no $ or suffixes.
+6. The dollar amount next to "Wins" or "Win" or "Won" — convert to full integer (e.g. $0.4M = 400000, $400K = 400000, $50,000 = 50000). Return the full integer, no $ or suffixes.
 If a value is not visible in the image, use null.`;
 
 // Force Gemini to return a strict JSON schema — most reliable approach
@@ -25,8 +27,10 @@ const RESPONSE_SCHEMA = {
     sqor:        { type: "number",  nullable: true, description: "Full dollar amount next to SQO Creation converted to integer (e.g. $2.1M = 2100000)" },
     named:       { type: "integer", nullable: true, description: "Number next to Named Accounts" },
     horizon:     { type: "integer", nullable: true, description: "Number next to Horizon Accounts" },
+    cost:        { type: "number",  nullable: true, description: "Full dollar amount next to Event Cost converted to integer (e.g. $74,245 = 74245)" },
+    wins:        { type: "number",  nullable: true, description: "Full dollar amount next to Wins converted to integer (e.g. $0.4M = 400000)" },
   },
-  required: ["individuals", "sqor", "named", "horizon"],
+  required: ["individuals", "sqor", "named", "horizon", "cost", "wins"],
 };
 
 export default {
