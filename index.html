@@ -2225,69 +2225,72 @@ function buildMainSlide(pptx, ev) {
         { text: fmtCur(total),        options: { fill: bg, fontSize: 8, bold: true, align: "right", color: DARK } },
       ];
     });
+    const kpiBoxW = emu(8128036); // 8.889"
+    // Distribute the exact 8.889" across 9 columns to fit cleanly inside dashed rect
+    const colW = [1.889, 0.70, 0.85, 0.85, 0.75, 0.75, 0.75, 0.75, 0.90]; // sum = 7.69" -> fit into w
     slide.addTable([kpiHdr, ...kpiData], {
-      x: emu(3926798), y: emu(5411449), w: emu(8128036),
-      colW: [1.9, 0.75, 0.85, 0.85, 0.75, 0.75, 0.75, 0.75, 0.82],
+      x: emu(3926798), y: emu(5411449), w: kpiBoxW,
+      colW: [2.0, 0.8, 0.85, 0.85, 0.72, 0.72, 0.72, 0.72, 0.90],
       ...tblFont, rowH: 0.22,
     });
   } else {
     slide.addText("[Insert table of KPI projects]", {
-      x: emu(6565691), y: emu(5599847), w: emu(3018019), h: emu(276673),
-      fontSize: 12, fontFace: "IBM Plex Sans Light", color: "525252",
+      x: emu(3926798), y: emu(5411449), w: emu(8128036), h: emu(653470),
+      fontSize: 12, fontFace: "IBM Plex Sans Light", color: "525252", align: "center",
     });
   }
 
   // ── Table 17 (2×3) — Expected Individuals (id=18)
-  //    x=0.33cm  y=3.33cm  w=9.96cm  — 3 equal columns
+  //    x=0.33cm (0.13"), y=1.25" (3.18cm), w=9.96cm (3.92") — 3 equal columns
   const iW = cm(9.96) / 3;
   slide.addTable([
     [ mCell("Expected Individuals"), mCell("Actual Individuals"), mCell("Delta") ],
     [ dCell(expInd), dCell(actInd), dCell(deltaInd) ],
   ], {
-    x: cm(0.33), y: cm(3.33), w: cm(9.96), colW: [iW, iW, iW],
-    rowH: 0.3, ...tblFont,
+    x: cm(0.33), y: 1.25, w: cm(9.96), colW: [iW, iW, iW],
+    rowH: 0.28, ...tblFont,
   });
 
   // ── Table 19 (2×3) — Expected SQOR (id=20)
-  //    x=0.42cm  y=6.04cm  w=9.87cm  — 3 equal columns
+  //    x=0.42cm (0.17"), y=2.25" (5.72cm), w=9.87cm (3.89") — 3 equal columns
   const sW = cm(9.87) / 3;
   slide.addTable([
     [ mCell(`Expected SQOR by end of ${sqorBucket}`), mCell(`Actual SQOR as of ${epmPullDate}`), mCell("Delta (+/-)") ],
     [ dCell(expSqor), dCell(actSqorFmt), dCell(deltaSqorFmt) ],
   ], {
-    x: cm(0.42), y: cm(6.04), w: cm(9.87), colW: [sW, sW, sW],
-    rowH: 0.3, ...tblFont,
+    x: cm(0.42), y: 2.25, w: cm(9.87), colW: [sW, sW, sW],
+    rowH: 0.28, ...tblFont,
   });
 
   // ── Table 5 (2×1) — % Named Accounts (id=6)
-  //    x=0.72cm  y=9.40cm  w=3.98cm
+  //    x=0.42cm, y=3.28" (8.33cm), w=4.6cm (1.81")
   slide.addTable([
     [ mCell("% Named Accounts\n(# of Named/Total Attendees)", { fontSize: 8 }) ],
-    [ dCell(namedPct, { fontSize: namedPct === "X%" ? 14 : 11, bold: true }) ],
+    [ dCell(namedPct, { fontSize: namedPct === "X%" ? 13 : 10, bold: true }) ],
   ], {
-    x: cm(0.72), y: cm(9.40), w: cm(3.98),
-    rowH: [0.5, 0.5], ...tblFont,
+    x: cm(0.42), y: 3.28, w: cm(4.6),
+    rowH: [0.42, 0.42], ...tblFont,
   });
 
   // ── Table 9 (2×1) — % Horizon Accounts (id=10)
-  //    x=6.23cm  y=9.36cm  w=3.98cm
+  //    x=5.40cm, y=3.28" (8.33cm), w=4.6cm (1.81")
   slide.addTable([
     [ mCell("% Horizon Accounts\n(# of Horizon/Total Attendees)", { fontSize: 8 }) ],
-    [ dCell(horizonPct, { fontSize: horizonPct === "X%" ? 14 : 11, bold: true }) ],
+    [ dCell(horizonPct, { fontSize: horizonPct === "X%" ? 13 : 10, bold: true }) ],
   ], {
-    x: cm(6.23), y: cm(9.36), w: cm(3.98),
-    rowH: [0.5, 0.5], ...tblFont,
+    x: cm(5.40), y: 3.28, w: cm(4.6),
+    rowH: [0.42, 0.42], ...tblFont,
   });
 
   // ── Table 15 (3×1) — Event Highlights / Future Recommendations (id=16)
-  //    x=0.80cm (0.31"), y=4.55" (11.56cm), w=9.5cm (3.74"), h=2.50" (6.35cm) — fits completely on 7.5" slide
+  //    x=0.42cm, y=4.40" (11.18cm), w=9.87cm (3.89"), h=2.65" (6.73cm) — ends at y=7.05" on a 7.5" slide
   slide.addTable([
     [ hCell("Event Highlights / Future Recommendations", { fontSize: 9 }) ],
     [ dCell(highlightsText, { align: "left", fontSize: 8.5, valign: "top" }) ],
     [ mCell(decisionText, { fontSize: 9 }) ],
   ], {
-    x: cm(0.80), y: 4.55, w: cm(9.5),
-    rowH: [0.32, 1.85, 0.32], ...tblFont,
+    x: cm(0.42), y: 4.40, w: cm(9.87),
+    rowH: [0.32, 2.0, 0.32], ...tblFont,
   });
 }
 
