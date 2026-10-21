@@ -19,7 +19,7 @@
 const AT_BASE_ID    = "appcSYlaIYXL0UHy9";
 const AT_TABLE_ID   = "tblFRyAdPMPYwU8Zr";
 const AT_BRIEF_FIELD    = "🔷EMB #";
-const AT_NAME_FIELD     = "🔷Event Name";
+const AT_NAME_FIELD     = "🔷Event Name (English)";
 const AT_EXPECTED_FIELD = "🔹Expected Responses";
 const AT_DATE_FIELD     = "🔷Start Date";
 
@@ -68,7 +68,10 @@ export default {
         `&fields[]=${encodeURIComponent(AT_NAME_FIELD)}&fields[]=${encodeURIComponent(AT_BRIEF_FIELD)}`;
 
       const atResp = await fetch(atUrl, { headers: atHeaders });
-      if (!atResp.ok) return jsonError(`Airtable error ${atResp.status}`, 502);
+      if (!atResp.ok) {
+        const errBody = await atResp.json().catch(() => ({}));
+        return jsonError(`Airtable error ${atResp.status}: ${JSON.stringify(errBody)}`, 502);
+      }
 
       const data = await atResp.json();
       const results = (data.records || [])
@@ -93,7 +96,10 @@ export default {
       const atUrl = `${AT_BASE_URL}?filterByFormula=${filter}&maxRecords=5`;
 
       const atResp = await fetch(atUrl, { headers: atHeaders });
-      if (!atResp.ok) return jsonError(`Airtable error ${atResp.status}`, 502);
+      if (!atResp.ok) {
+        const errBody = await atResp.json().catch(() => ({}));
+        return jsonError(`Airtable error ${atResp.status}: ${JSON.stringify(errBody)}`, 502);
+      }
 
       const data = await atResp.json();
       const record = data.records && data.records[0];
