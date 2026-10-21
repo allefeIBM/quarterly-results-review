@@ -2213,7 +2213,7 @@ function buildMainSlide(pptx, ev) {
   const expSqorRaw = expSqorVal > 0 ? expSqorVal : 0;
   const actSqorFmt  = !isNaN(actSqorRaw) ? fmtCur(actSqorRaw) : "";
   const deltaSqorFmt = (!isNaN(actSqorRaw) && expSqorRaw)
-    ? ((actSqorRaw - expSqorRaw >= 0 ? "+" : "") + fmtCur(Math.abs(actSqorRaw - expSqorRaw)))
+    ? ((actSqorRaw - expSqorRaw >= 0 ? "+" : "-") + fmtCur(Math.abs(actSqorRaw - expSqorRaw)))
     : "";
 
   // % Named Accounts = Named / Attendees
