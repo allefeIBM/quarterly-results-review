@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """
-update_data.py — Regenera o data.json a partir dos arquivos .xlsx da pasta.
+update_data.py — Regenera o data.json a partir dos arquivos Q126/Q226/Q326/Q426.xlsx.
+
+Formato das planilhas:
+  Linha 1  → cabeçalho: UT15 (KPI) | UT17 (KPI) | Activity Name | Brief/EMB | CQ | NQ | NQ+1 | NQ+2 | Total
+  Linha 2+ → dados
 
 Uso:
     python3 update_data.py
 
-O script lê todos os .xlsx, extrai os KPIs e salva o data.json atualizado.
+O script lê os 4 .xlsx, extrai os KPIs e salva o data.json atualizado.
 Em seguida, faz commit e push automático para o GitHub (opcional).
 """
 
@@ -19,169 +23,146 @@ import openpyxl
 
 BASE_DIR = Path(__file__).parent
 
+# Planilhas a processar (na ordem Q1→Q4)
+XLSX_FILES = [
+    ("Q126.xlsx", "Q1"),
+    ("Q226.xlsx", "Q2"),
+    ("Q326.xlsx", "Q3"),
+    ("Q426.xlsx", "Q4"),
+]
+
 
 # ── Helpers de parsing ────────────────────────────────────────────────────────
 
-def find_header_row(rows):
-    for i, row in enumerate(rows):
-        r = [str(c).strip().lower() if c else "" for c in row]
-        has_name = any(x in r for x in ["event name", "activity name", "event", "activity"])
-        has_brief = any(x in r for x in ["brief", "brief id", "emb", "emb #", "emb#"])
-        if has_name and has_brief:
-            return i
-    return None
-
-
-def col_index(headers, *candidates):
-    for name in candidates:
-        nl = name.lower()
+def col_index_exact(headers, *names):
+    """Retorna o índice da primeira coluna cujo cabeçalho (sem sufixo entre parênteses)
+    corresponde a um dos nomes fornecidos (case-insensitive)."""
+    for name in names:
+        nl = name.upper()
         for i, h in enumerate(headers):
-            if h and h.lower() == nl:
-                return i
-        for i, h in enumerate(headers):
-            if h and h.lower().startswith(nl):
-                return i
-        for i, h in enumerate(headers):
-            if h and nl in h.lower():
+            hc = str(h).strip().upper().split("(")[0].strip() if h else ""
+            if hc == nl:
                 return i
     return None
 
 
-def col_index_exact(headers, name):
-    nl = name.upper()
-    for i, h in enumerate(headers):
-        hc = h.upper().split("(")[0].strip() if h else ""
-        if hc == nl:
-            return i
-    return None
-
-
-def col_index_total(headers):
-    for exact in ("totals", "total", "total sql"):
+def col_index_contains(headers, *fragments):
+    """Retorna o índice da primeira coluna cujo cabeçalho contém um dos fragmentos
+    (case-insensitive). Usado como fallback."""
+    for frag in fragments:
+        fl = frag.lower()
         for i, h in enumerate(headers):
-            if h and h.lower() == exact:
+            if h and fl in str(h).strip().lower():
                 return i
-    for i, h in enumerate(headers):
-        hl = h.lower() if h else ""
-        if hl.startswith("total") and hl != "total sqlr" and "sqlr" not in hl:
-            return i
     return None
+
+
+def parse_num(value):
+    """Converte valor de célula para float ou None."""
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 # ── Extração principal ────────────────────────────────────────────────────────
 
 def extract_all_events():
     events = {}
-    xlsx_files = sorted(
-        p.name for p in BASE_DIR.glob("*.xlsx") if not p.name.startswith("~$")
-    )
 
-    if not xlsx_files:
-        print("⚠  Nenhum arquivo .xlsx encontrado na pasta.")
-        sys.exit(1)
-
-    print(f"📂 {len(xlsx_files)} arquivo(s) encontrado(s):\n")
-
-    for filename in xlsx_files:
+    for filename, quarter in XLSX_FILES:
         path = BASE_DIR / filename
-        print(f"  → {filename}")
+        if not path.exists():
+            print(f"  ⚠  {filename} não encontrado — ignorando.")
+            continue
+
+        print(f"  → {filename}  (quarter={quarter})")
         try:
             wb = openpyxl.load_workbook(path, data_only=True)
         except Exception as e:
             print(f"     ⚠  Erro ao abrir: {e}")
             continue
 
-        sheet_count = 0
-        row_count = 0
-
         for sheet_name in wb.sheetnames:
-            if "option" in sheet_name.lower() or sheet_name.lower() == "sheet1":
-                continue
-
             ws = wb[sheet_name]
             rows = list(ws.iter_rows(values_only=True))
-            hi = find_header_row(rows)
-            if hi is None:
+            if not rows:
                 continue
 
-            headers = [str(c).strip() if c else "" for c in rows[hi]]
+            # Linha 1 é sempre o cabeçalho
+            raw_headers = rows[0]
+            headers = [str(h).strip() if h else "" for h in raw_headers]
+
+            # Mapear colunas pelo cabeçalho
             icol = {
-                "name":  col_index(headers, "event name", "activity name", "event", "activity"),
-                "brief": col_index(headers, "brief", "brief id", "emb", "emb #", "emb#"),
-                "ut15":  col_index(headers, "ut 15", "ut15"),
-                "ut17":  col_index(headers, "ut 17", "ut17"),
-                "cq":    col_index_exact(headers, "cq"),
-                "nq":    col_index_exact(headers, "nq"),
-                "nq1":   col_index_exact(headers, "nq+1"),
-                "nq2":   col_index_exact(headers, "nq+2"),
-                "total": col_index_total(headers),
+                "ut15":  col_index_exact(headers, "UT15"),
+                "ut17":  col_index_exact(headers, "UT17"),
+                "name":  col_index_exact(headers, "ACTIVITY NAME")
+                         or col_index_contains(headers, "activity name", "event name"),
+                "brief": col_index_exact(headers, "BRIEF", "EMB", "EMB #", "EMB#"),
+                "cq":    col_index_exact(headers, "CQ"),
+                "nq":    col_index_exact(headers, "NQ"),
+                "nq1":   col_index_exact(headers, "NQ+1"),
+                "nq2":   col_index_exact(headers, "NQ+2"),
+                "total": col_index_exact(headers, "TOTAL", "TOTALS", "TOTAL SQL"),
             }
 
             if icol["name"] is None or icol["brief"] is None:
+                print(f"     ⚠  Aba '{sheet_name}' sem colunas obrigatórias — ignorando.")
                 continue
 
-            # Determine quarter from sheet name or filename
-            file_and_sheet = f"{filename} {sheet_name}".upper()
-            quarter = next(
-                (q for q in ["Q1", "Q2", "Q3", "Q4"] if q in file_and_sheet), "Q1" if "Q1" in file_and_sheet else "Q2"
-            )
-            cur_name = cur_brief = None
+            row_count = 0
+            for row in rows[1:]:
+                name_val  = row[icol["name"]]  if icol["name"]  is not None else None
+                brief_val = row[icol["brief"]] if icol["brief"] is not None else None
 
-            for row in rows[hi + 1:]:
-                nv = row[icol["name"]]  if icol["name"]  is not None else None
-                bv = row[icol["brief"]] if icol["brief"] is not None else None
-                if nv and str(nv).strip():
-                    cur_name = str(nv).strip()
-                if bv and str(bv).strip():
-                    cur_brief = str(bv).strip()
-                if not cur_brief:
+                name_str  = str(name_val).strip()  if name_val  else ""
+                brief_str = str(brief_val).strip() if brief_val else ""
+
+                if not brief_str:
                     continue
 
-                def gn(k):
-                    if icol.get(k) is None:
-                        return None
-                    v = row[icol[k]]
-                    try:
-                        return float(v) if v is not None else None
-                    except (TypeError, ValueError):
-                        return None
+                cq    = parse_num(row[icol["cq"]])    if icol.get("cq")    is not None else None
+                nq    = parse_num(row[icol["nq"]])    if icol.get("nq")    is not None else None
+                nq1   = parse_num(row[icol["nq1"]])   if icol.get("nq1")   is not None else None
+                nq2   = parse_num(row[icol["nq2"]])   if icol.get("nq2")   is not None else None
+                total = parse_num(row[icol["total"]]) if icol.get("total") is not None else None
 
-                cq, nq, nq1, nq2, tot = gn("cq"), gn("nq"), gn("nq1"), gn("nq2"), gn("total")
-                if all(x is None for x in [cq, nq, nq1, nq2, tot]):
+                if all(x is None for x in [cq, nq, nq1, nq2, total]):
                     continue
 
                 ut15 = str(row[icol["ut15"]]).strip() if icol.get("ut15") is not None and row[icol["ut15"]] else ""
                 ut17 = str(row[icol["ut17"]]).strip() if icol.get("ut17") is not None and row[icol["ut17"]] else ""
 
                 kpi_row = {
-                    "event_name": cur_name or "",
-                    "brief": cur_brief,
-                    "ut15": ut15,
-                    "ut17": ut17,
-                    "cq":   cq,
-                    "nq":   nq,
-                    "nq1":  nq1,
-                    "nq2":  nq2,
-                    "total": tot,
-                    "quarter": quarter,
+                    "event_name":  name_str,
+                    "brief":       brief_str,
+                    "ut15":        ut15,
+                    "ut17":        ut17,
+                    "cq":          cq,
+                    "nq":          nq,
+                    "nq1":         nq1,
+                    "nq2":         nq2,
+                    "total":       total,
+                    "quarter":     quarter,
                     "source_file": filename,
                 }
 
-                key = cur_brief.upper()
+                key = brief_str.upper()
                 if key not in events:
                     events[key] = {
-                        "event_name": cur_name or "",
-                        "brief": cur_brief,
-                        "kpi_rows": [],
+                        "event_name": name_str,
+                        "brief":      brief_str,
+                        "kpi_rows":   [],
                     }
                 events[key]["kpi_rows"].append(kpi_row)
-                if cur_name:
-                    events[key]["event_name"] = cur_name
-
+                if name_str:
+                    events[key]["event_name"] = name_str
                 row_count += 1
-            sheet_count += 1
 
-        print(f"     ✓ {sheet_count} aba(s) · {row_count} KPI row(s)")
+            print(f"     ✓ aba '{sheet_name}' → {row_count} linha(s) carregada(s)")
 
     return events
 
@@ -191,7 +172,7 @@ def extract_all_events():
 def write_data_json(events):
     output = {
         "generated": datetime.now().isoformat()[:16],
-        "events": events,
+        "events":    events,
     }
     out_path = BASE_DIR / "data.json"
     with open(out_path, "w", encoding="utf-8") as f:
