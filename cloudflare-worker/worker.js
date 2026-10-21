@@ -8,7 +8,7 @@
  */
 
 const GEMINI_MODEL = "gemini-1.5-flash-8b";
-const GEMINI_URL   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_URL   = `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent`;
 
 const PROMPT = `Look at this image. Find and return these numbers:
 1. The integer next to "Attendees" or "Total Attendees"
