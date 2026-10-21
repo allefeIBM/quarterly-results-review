@@ -1378,13 +1378,18 @@ async function fetchAirtableForBrief(brief) {
 }
 
 function quarterBucket(eventDate) {
+  // Compare calendar quarters, not raw month intervals.
+  // Q1=Jan-Mar(0), Q2=Apr-Jun(1), Q3=Jul-Sep(2), Q4=Oct-Dec(3)
   if (!eventDate) return null;
+  const d = (typeof eventDate === "string") ? new Date(eventDate) : eventDate;
+  if (isNaN(d)) return null;
   const now = new Date();
-  const months = (now.getFullYear() - eventDate.getFullYear()) * 12 + (now.getMonth() - eventDate.getMonth());
-  const q = Math.floor(months / 3);
-  if (q <= 0) return "CQ";
-  if (q === 1) return "NQ";
-  if (q === 2) return "NQ+1";
+  const eventQ = Math.floor(d.getMonth() / 3) + d.getFullYear() * 4;
+  const nowQ   = Math.floor(now.getMonth() / 3) + now.getFullYear() * 4;
+  const diff   = nowQ - eventQ;   // positive = current date is AFTER event quarter
+  if (diff <= 0) return "CQ";
+  if (diff === 1) return "NQ";
+  if (diff === 2) return "NQ+1";
   return "NQ+2";
 }
 

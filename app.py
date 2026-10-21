@@ -128,15 +128,19 @@ def _parse_airtable_date(value):
 
 
 def _quarter_bucket_for_event(event_date):
+    # Compare calendar quarters, not raw month intervals.
+    # e.g. event in Aug (Q3), today in Oct (Q4) → diff=1 → "NQ"
     if not event_date:
         return None
-    months = (date.today().year - event_date.year) * 12 + (date.today().month - event_date.month)
-    quarter_diff = months // 3
-    if quarter_diff <= 0:
+    today = date.today()
+    event_q = (event_date.year * 4) + ((event_date.month - 1) // 3)
+    today_q = (today.year * 4) + ((today.month - 1) // 3)
+    diff = today_q - event_q
+    if diff <= 0:
         return "CQ"
-    if quarter_diff == 1:
+    if diff == 1:
         return "NQ"
-    if quarter_diff == 2:
+    if diff == 2:
         return "NQ+1"
     return "NQ+2"
 
