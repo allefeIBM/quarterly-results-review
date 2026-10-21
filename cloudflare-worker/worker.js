@@ -7,7 +7,7 @@
  *   GEMINI_API_KEY  →  your AIza... key from Google AI Studio
  */
 
-const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_MODEL = "gemini-1.5-flash-8b";
 const GEMINI_URL   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const PROMPT = `Look at this image. Find and return these numbers:

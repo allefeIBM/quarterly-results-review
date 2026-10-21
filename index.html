@@ -1797,17 +1797,33 @@ async function handleOcrFile(file) {
   try {
     progressText.textContent = "Loading data…";
 
-    // Convert file to base64 & store full dataUrl for PPTX export
-    const dataUrl = await new Promise((resolve, reject) => {
+    // Read original file → keep full-res dataUrl for PPTX export
+    const originalDataUrl = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload  = () => resolve(reader.result);
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
-    uploadedScreenshotDataUrl = dataUrl;
-    const base64 = dataUrl.split(",")[1];
+    uploadedScreenshotDataUrl = originalDataUrl; // full-res kept for slide
 
-    const mimeType = file.type || "image/png";
+    // Resize to max 1024px before sending to Gemini — reduces token cost ~75%
+    const MAX_PX = 1024;
+    const resizedDataUrl = await new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, MAX_PX / Math.max(img.width, img.height));
+        const w = Math.round(img.width  * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width  = w;
+        canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.85)); // JPEG at 85% quality
+      };
+      img.src = originalDataUrl;
+    });
+    const base64 = resizedDataUrl.split(",")[1];
+    const mimeType = "image/jpeg";
 
     progressText.textContent = "Loading data into the system…";
 
