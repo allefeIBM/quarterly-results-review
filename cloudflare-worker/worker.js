@@ -10,25 +10,20 @@
 const GEMINI_MODEL = "gemini-3.5-flash-lite";
 const GEMINI_URL   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
-const PROMPT = `Look at this image. Find and return these numbers:
-1. The integer next to "Attendees" or "Total Attendees"
-2. The dollar amount next to "SQO Creation" — convert to full number (e.g. $2.1M = 2100000, $0.7M = 700000, $1.5K = 1500). Return the full integer, no $ or suffixes.
-3. The integer next to "Named Accounts"
-4. The integer next to "Horizon Accounts"
-5. The dollar amount next to "Event Cost" or "Cost" — convert to full integer (e.g. $74,245 = 74245, $74.2K = 74200, $0.1M = 100000). Return the full integer, no $ or suffixes.
-6. The dollar amount next to "Wins" or "Win" or "Won" — convert to full integer (e.g. $0.4M = 400000, $400K = 400000, $50,000 = 50000). Return the full integer, no $ or suffixes.
-If a value is not visible in the image, use null.`;
+// Minimal prompt — fewer tokens, same accuracy
+const PROMPT = `Extract these 6 numbers from the dashboard image. Convert $M/$K to full integers (e.g.$2.1M=2100000,$74K=74000). Use null if not found.
+1.Attendees 2.SQO Creation 3.Named Accounts 4.Horizon Accounts 5.Event Cost 6.Wins`;
 
-// Force Gemini to return a strict JSON schema — most reliable approach
+// Schema without descriptions — saves ~80 tokens per call
 const RESPONSE_SCHEMA = {
   type: "object",
   properties: {
-    individuals: { type: "integer", nullable: true, description: "Number next to Attendees or Total Attendees" },
-    sqor:        { type: "number",  nullable: true, description: "Full dollar amount next to SQO Creation converted to integer (e.g. $2.1M = 2100000)" },
-    named:       { type: "integer", nullable: true, description: "Number next to Named Accounts" },
-    horizon:     { type: "integer", nullable: true, description: "Number next to Horizon Accounts" },
-    cost:        { type: "number",  nullable: true, description: "Full dollar amount next to Event Cost converted to integer (e.g. $74,245 = 74245)" },
-    wins:        { type: "number",  nullable: true, description: "Full dollar amount next to Wins converted to integer (e.g. $0.4M = 400000)" },
+    individuals: { type: "integer", nullable: true },
+    sqor:        { type: "number",  nullable: true },
+    named:       { type: "integer", nullable: true },
+    horizon:     { type: "integer", nullable: true },
+    cost:        { type: "number",  nullable: true },
+    wins:        { type: "number",  nullable: true },
   },
   required: ["individuals", "sqor", "named", "horizon", "cost", "wins"],
 };

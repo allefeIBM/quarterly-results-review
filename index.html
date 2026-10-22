@@ -1807,7 +1807,7 @@ async function handleOcrFile(file) {
     uploadedScreenshotDataUrl = originalDataUrl; // full-res kept for slide
 
     // Resize to max 1024px before sending to Gemini — reduces token cost ~75%
-    const MAX_PX = 1024;
+    const MAX_PX = 768;
     const resizedDataUrl = await new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
@@ -1818,7 +1818,7 @@ async function handleOcrFile(file) {
         canvas.width  = w;
         canvas.height = h;
         canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL("image/jpeg", 0.85)); // JPEG at 85% quality
+        resolve(canvas.toDataURL("image/jpeg", 0.75)); // JPEG at 75% — sufficient for OCR
       };
       img.src = originalDataUrl;
     });
